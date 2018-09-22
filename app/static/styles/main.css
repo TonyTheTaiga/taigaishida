@@ -7,35 +7,36 @@ body {
     background-color: #FFFFFA;
     padding: 0;
     margin: 0;
+    font-family: koushiki;
 }
 
 #navigation {
     display: flex;
-    align-items: center;
-    font-family: koushiki;
+    padding: 20px;
 }
 
 #navigation h1{
-    padding: 20px;
     flex-grow: 2;
 }
 
 #navigation ul {
+    align-items: center;
     margin-left: 40vw;
-    padding: 20px;
     display: flex;
     flex-grow: 1;
     flex-wrap: wrap;
     justify-content: space-between;
     list-style-type: none;
+    font-weight: bold;
 }
 
-#navigation li {
+#navigation ul li {
     font-size: 14pt;
     align-items: flex-end;
+    padding: 0 5px 0 5px;
 }
 
-#navigation a {
+#navigation  a {
     text-decoration: none;
 }
 
@@ -44,6 +45,24 @@ body {
 
 }
 
+#navigation ul a:hover{
+    color: rgb(15, 71, 224);
+}
+
 #navigation a:visited {
     color: grey;
+}
+
+section{
+    text-align: center;
+    height: 80vh;
+    padding: 20px;
+}
+
+article{
+    text-align: center;
+}
+
+footer{
+    text-align: center;
 }
