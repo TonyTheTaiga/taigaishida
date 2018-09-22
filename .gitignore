@@ -138,3 +138,9 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+.DS_Store
+
+/.vscode
+
+config.py

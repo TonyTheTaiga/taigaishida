@@ -1,0 +1,49 @@
+@font-face {
+    font-family: koushiki;
+    src: url('/static/fonts/koushikiT.ttf');
+}
+
+body {
+    background-color: #FFFFFA;
+    padding: 0;
+    margin: 0;
+}
+
+#navigation {
+    display: flex;
+    align-items: center;
+    font-family: koushiki;
+}
+
+#navigation h1{
+    padding: 20px;
+    flex-grow: 2;
+}
+
+#navigation ul {
+    margin-left: 40vw;
+    padding: 20px;
+    display: flex;
+    flex-grow: 1;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    list-style-type: none;
+}
+
+#navigation li {
+    font-size: 14pt;
+    align-items: flex-end;
+}
+
+#navigation a {
+    text-decoration: none;
+}
+
+#navigation a:link {
+    color: grey;
+
+}
+
+#navigation a:visited {
+    color: grey;
+}
