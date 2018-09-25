@@ -6,6 +6,8 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/main.css')}}">
     <meta name="description" content="Taiga Ishida Web Portfolio">
     <meta name="author" content="Taiga Ishida">
+    <meta charset="utf-8">
+    <meta name='viewport' content='initial-scale=1, viewport-fit=cover'>
 
 </head>
 
@@ -23,15 +25,20 @@
                     <a href="https://www.linkedin.com/in/taigaishida/" target="_">LINKEDIN</a>
                 </li>
                 <li>
-                    <a href="{{ url_for('picture') }}">PICTURES</a>
+                    <a href="http://bit.ly/TaigaResume" target="_">RESUME</a>
+                </li>
+                <li>
+                    <a href="{{ url_for('picture') }}">GALLERY</a>
                 </li>
             </ul>
         </nav>
         <!-- header -->
     </header>
+    <hr id="line">
     {% block content %}{% endblock %}
+    <hr id="line">
     <footer>
-        <p>Copright &copy; 2018 Taiga Ishida</p>
+            <p>Copright &copy; 2018 Taiga Ishida</p>
     </footer>
 </body>
 

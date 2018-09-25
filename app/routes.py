@@ -8,4 +8,4 @@ def index():
 
 @app.route('/picture')
 def picture():
-    return render_template('layout.html')
+    return render_template('gallery.html')

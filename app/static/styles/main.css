@@ -7,36 +7,48 @@ body {
     background-color: #FFFFFA;
     padding: 0;
     margin: 0;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
     font-family: koushiki;
+}
+
+#line {
+    max-width: 90%;
 }
 
 #navigation {
     display: flex;
     padding: 20px;
+    padding-bottom: 0;
+    align-content: center;
+    align-items: center;
 }
 
-#navigation h1{
+#navigation h1 {
+    font-size: 2em;
     flex-grow: 2;
 }
 
 #navigation ul {
+    align-content: center;
     align-items: center;
-    margin-left: 40vw;
+    /* margin-left: 30vw; */
     display: flex;
     flex-grow: 1;
     flex-wrap: wrap;
     justify-content: space-between;
     list-style-type: none;
     font-weight: bold;
+    text-align: right;
 }
 
 #navigation ul li {
-    font-size: 14pt;
+    font-size: 1.2em;
     align-items: flex-end;
     padding: 0 5px 0 5px;
 }
 
-#navigation  a {
+#navigation a {
     text-decoration: none;
 }
 
@@ -45,24 +57,67 @@ body {
 
 }
 
-#navigation ul a:hover{
+#navigation ul a:hover {
     color: rgb(15, 71, 224);
 }
+
+/* #navigation ul a:visited{
+    color: rgb(15, 71, 224);
+} */
 
 #navigation a:visited {
     color: grey;
 }
 
-section{
+section {
     text-align: center;
-    height: 80vh;
-    padding: 20px;
+    /* height: 80vh; */
+    /* padding: 20px; */
+    padding-top: 10px;
 }
 
-article{
+section h1 {
+    margin: 0;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+article {
+    padding-left: 20%;
+    padding-right: 20%;
+    text-align: center;
+    /* display: flex; */
+    /* align-items: center;
+    align-content: center;
+    justify-content: space-between; */
+    /* flex-wrap: wrap;
+    padding-top: 50px;
+    padding-bottom: 50px; */
+}
+/* 
+article img{
+    max-width: 60%;
+    height: auto;
+    text-align: center;
+} */
+
+img {
+    max-width: 60%;
+    height: auto;
+    text-align: center;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    
+}
+
+article div {
     text-align: center;
 }
 
-footer{
+article p {
+    margin-top: 0;
+}
+
+footer {
     text-align: center;
 }
