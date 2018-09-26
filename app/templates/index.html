@@ -6,30 +6,68 @@
 <section>
     <article>
         <div>
-            <h1>ABOUT ME</h1>
+            <h2>ABOUT ME</h2>
             <p>
                 I'm a <b>Junior Engineer</b> looking for a exciting project that I can be apart of.<br>
-                I focus in writing <b>clean, reusable code</b> that is <b>efficient</b> and <b>easy</b> to read.<br>
-                <br>
+                I try to focus on writing <b>clean, reusable code</b> that is <b>efficient</b> and <b>easy</b> to read.<br>
+                I have experience designing and implementing applications in Python, Assembly as well as C++/#.<br>
+                I like to think of clever solution to challenging problems and to contantly learn new things.
             </p>
             <p>
                 Besides programming, I have interests in photography, fashion, interior design and skateboarding.<br>
-                In a age of consumerism, I think it's important for people to express themselves and not just consume.<br>
-                I hope to one day become proficient enough in coding to combine programming with arts.<br>
+                In a age of consumerism, I think it's important for people to create content and not just consume.<br>
+                I also like to eat food and travel. My favorite place is Japan and I hope to one day live there.<br>
             </p>
         </div>
     </article>
+
     <img src="{{ url_for('static', filename='imgs/kinkakuji2.png') }}" alt="kinkakuji">
+    <br>
+    <small>kinkakuji kyoto japan</small>
     <article>
+        <h2>PROJECTS</h2>
         <div>
-            <h1>PROJECTS</h1>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Placeat, repellendus!</p>
+            <article>
+                <h1>Crypto Tracking Bot For Slack</h1>
+                <p>
+                    A Slack bot server that adds commands to users in a chat room.<br>Incorporates a python script that
+                    fetches crpyto information
+                    from coinmarketcap’s API and returns it to users.<br>Implemented a modular design by separating the
+                    bot functions from the
+                    main functions.<br>Also improved runtime by storing the coin ID’s in a hashmap on startup.
+                </p>
+            </article>
+            <article>
+                <h1>Embedded Space Invaders Clone</h1>
+                <p>
+                    Space Invaders game written in assembly and flashed onto a LCP-2138 Arm Micro controller.<br>Made
+                    use
+                    of the GPIO
+                    and UART to receive/transmit data.<br>For example, the 7 segment display was used to show the
+                    score.<br>I
+                    Designed and
+                    implemented algorithms for every aspect of the game such as movement, attacking and as well as
+                    collision detection.
+                </p>
+            </article>
+            <article>
+                <h1>Course Enrollment System Website</h1>
+                <p>
+                    Designed and implemented a course enrollment system for a semester long project at University at
+                    Buffalo.<br>Students were
+                    able to create a account and sign up for courses online through this website.<br>I helped and
+                    implement the view functions as
+                    well worked on fetching and store data into the database.<br>Throughout this project I learned how to
+                    properly use github
+                    from development to production and testing.
+                </p>
+            </article>
         </div>
     </article>
 
     <article>
         <div>
-            <h1>TECHNICAL KNOWLEDGE</h1>
+            <h2>TECHNICAL KNOWLEDGE</h2>
             <p>
                 <b>Python, Java, HTML5, CSS3, JavaScript, C++/#, Assembly</b>
                 <br>
@@ -41,7 +79,6 @@
         <div>
             <h1></h1>
             <address>
-                Taiga Ishida<br>
                 4555 Vandever Ave<br>
                 San Deigo, CA 92120<br>
                 (315)-489-3490<br>

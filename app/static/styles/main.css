@@ -83,8 +83,8 @@ section h1 {
 }
 
 article {
-    padding-left: 20%;
-    padding-right: 20%;
+    padding-left: 10%;
+    padding-right: 10%;
     text-align: center;
     /* display: flex; */
     /* align-items: center;
@@ -94,6 +94,27 @@ article {
     padding-top: 50px;
     padding-bottom: 50px; */
 }
+
+article h2{
+    text-decoration: underline;
+}
+/* 
+#projects{
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding-left: 0;
+    padding-right: 0;
+    align-content: center;
+    align-items: center;
+}
+
+.project-item {
+    padding-left: 10%;
+    padding-right: 10%;
+    align-content: center;
+    align-items: center;
+} */
 /* 
 article img{
     max-width: 60%;
