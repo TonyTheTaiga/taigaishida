@@ -12,6 +12,18 @@ body {
     font-family: koushiki;
 }
 
+a:link {
+    color:grey;
+}
+
+a:visited {
+    color: grey;
+}
+
+a:hover {
+    color: rgb(15, 71, 224);
+}
+
 #line {
     max-width: 90%;
 }
@@ -22,6 +34,7 @@ body {
     padding-bottom: 0;
     align-content: center;
     align-items: center;
+    text-decoration: none;
 }
 
 #navigation h1 {
@@ -48,31 +61,8 @@ body {
     padding: 0 5px 0 5px;
 }
 
-#navigation a {
-    text-decoration: none;
-}
-
-#navigation a:link {
-    color: grey;
-
-}
-
-#navigation ul a:hover {
-    color: rgb(15, 71, 224);
-}
-
-/* #navigation ul a:visited{
-    color: rgb(15, 71, 224);
-} */
-
-#navigation a:visited {
-    color: grey;
-}
-
 section {
     text-align: center;
-    /* height: 80vh; */
-    /* padding: 20px; */
     padding-top: 10px;
 }
 
@@ -86,41 +76,7 @@ article {
     padding-left: 10%;
     padding-right: 10%;
     text-align: center;
-    /* display: flex; */
-    /* align-items: center;
-    align-content: center;
-    justify-content: space-between; */
-    /* flex-wrap: wrap;
-    padding-top: 50px;
-    padding-bottom: 50px; */
 }
-
-article h2{
-    text-decoration: underline;
-}
-/* 
-#projects{
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    padding-left: 0;
-    padding-right: 0;
-    align-content: center;
-    align-items: center;
-}
-
-.project-item {
-    padding-left: 10%;
-    padding-right: 10%;
-    align-content: center;
-    align-items: center;
-} */
-/* 
-article img{
-    max-width: 60%;
-    height: auto;
-    text-align: center;
-} */
 
 img {
     max-width: 60%;
