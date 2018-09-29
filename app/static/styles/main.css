@@ -12,6 +12,10 @@ body {
     font-family: koushiki;
 }
 
+a {
+    text-decoration: none;    
+}
+
 a:link {
     color:grey;
 }
