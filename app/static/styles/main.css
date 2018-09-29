@@ -1,8 +1,9 @@
+/* v{.1} */
 @font-face {
     font-family: koushiki;
     src: url('/static/fonts/koushikiT.ttf');
 }
-
+/* main body */
 body {
     background-color: #FFFFFA;
     padding: 0;
@@ -10,15 +11,24 @@ body {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     font-family: koushiki;
-    line-height: 1.5;
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+/* all the big images */
+img {
+    max-width: 75%;
+    height: auto;
+    text-align: center;
+    padding-top: 20px;
 }
 
 a {
-    text-decoration: none;    
+    text-decoration: none;
 }
 
 a:link {
-    color:grey;
+    color: grey;
 }
 
 a:visited {
@@ -31,6 +41,8 @@ a:hover {
 
 #line {
     max-width: 90%;
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 #navigation {
@@ -68,6 +80,10 @@ a:hover {
     padding: 0 5px 0 5px;
 }
 
+#caption {
+    text-align: right;
+}
+
 section {
     text-align: center;
     padding-top: 10px;
@@ -85,15 +101,6 @@ article {
     text-align: center;
 }
 
-img {
-    max-width: 60%;
-    height: auto;
-    text-align: center;
-    padding-top: 20px;
-    padding-bottom: 20px;
-    
-}
-
 article div {
     text-align: center;
 }
@@ -102,6 +109,16 @@ article p {
     margin-top: 0;
 }
 
+article h2 {
+    margin-bottom: 0;
+}
+
+article img {
+    max-width: 80%;
+    padding: 0;
+}
+
 footer {
     text-align: center;
 }
+/* v{.1} */
