@@ -1,9 +1,8 @@
-/* v{.1} */
 @font-face {
     font-family: koushiki;
     src: url('/static/fonts/koushikiT.ttf');
 }
-/* main body */
+
 body {
     background-color: #FFFFFA;
     padding: 0;
@@ -15,7 +14,6 @@ body {
     line-height: 1.6;
 }
 
-/* all the big images */
 img {
     max-width: 75%;
     height: auto;
@@ -64,7 +62,6 @@ a:hover {
 #navigation ul {
     align-content: center;
     align-items: center;
-    /* margin-left: 30vw; */
     display: flex;
     flex-grow: 1;
     flex-wrap: wrap;
@@ -121,4 +118,3 @@ article img {
 footer {
     text-align: center;
 }
-/* v{.1} */
