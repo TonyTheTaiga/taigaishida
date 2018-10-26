@@ -79,8 +79,12 @@ a:hover {
   padding: 0 2px 0 2px;
 }
 
-#caption {
-  text-align: right;
+.container {
+  display: grid;
+  grid-template-columns: 60% 40%;
+}
+
+.project-item {
 }
 
 section {
@@ -119,4 +123,16 @@ article img {
 
 footer {
   text-align: center;
+}
+
+#aboutMe {
+}
+
+#skills {
+}
+
+#picture {
+}
+
+#contact {
 }

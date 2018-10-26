@@ -6,11 +6,13 @@
 <section>
     <article class="aboutMe">
         <div>
-            <h2>ABOUT ME</h2>
+            <h2>About Me</h2>
             <p>
-                I am a <b>Junior Engineer</b> looking for a exciting project that I can become a member of.<br>
-                I try to focus on writing <b>clean, reusable code</b> that is <b>efficient</b> and <b>easy</b> to read.<br>
-                I have experience designing and implementing applications in <b>Python, Assembly as well as C++/#</b>.<br>
+                I am a <b>Junior Engineer</b> looking for a exciting new oppurunity to start my career.<br>
+                I focus on writing <b>clean, reusable code</b> that is <b>efficient</b> and <b>easy</b> to read.<br>
+                I have experience designing and implementing <b>web applications in python</b> as well as <b>embedded
+                    software
+                    in Assembly/C++.</b><br>
                 I like to think of clever solution to challenging problems and to contantly learn new ways to apply my
                 knowledge.
             </p>
@@ -23,14 +25,30 @@
         <!-- ABOUT ME -->
     </article>
 
-    <img src="{{ url_for('static', filename='imgs/kinkakuji2.png') }}" alt="kinkakuji">
-    <br>
-    <small id="caption">kinkakuji kyoto japan</small>
-
-    <article class=projects>
+    <article class="skills">
         <div>
-            <h2>PROJECTS</h2>
-            <article>
+            <h2>Technical Knowledge</h2>
+            <p>
+                <b>Lanugages:</b> Python, Java, HTML5, CSS3, JavaScript, C++/#, ARM Assembly
+                <br>
+                <b>Databases:</b> MySQL, SQLite, MongoDB
+                <br>
+                <b>Tools:</b> Github, Flask, Elasticsearch
+            </p>
+        </div>
+        <!-- TECHNICAL KNOWLEDGE -->
+    </article>
+
+    <article class="picure">
+        <img src="{{ url_for('static', filename='imgs/kinkakuji2.png') }}" alt="kinkakuji">
+        <br>
+        <small id="caption">kinkakuji kyoto japan</small>
+    </article>
+
+    <article id="projects">
+        <h2>Projects</h2>
+        <div class="container">
+            <article class="project-item">
                 <h1><a href="https://github.com/TonyTheTaiga/slackbot" target="_">Crypto Tracking Bot For Slack</a></h1>
                 <p>
                     A Slack bot server that adds commands to users in a chat room.<br>Incorporates a python script that
@@ -39,9 +57,13 @@
                     bot functions from the
                     main functions.<br>Also improved runtime by storing the coin ID’s in a hashmap on startup.
                 </p>
+            </article>
+
+            <article class="project-item">
                 <img src="{{ url_for('static', filename='imgs/slackbotGIF.gif') }}" alt="slackbot demo">
             </article>
-            <article>
+
+            <article class="project-item">
                 <h1><a href="https://github.com/TonyTheTaiga/Invaders" target="_">Embedded Space Invaders Clone</a></h1>
                 <p>
                     Space Invaders Clone written in <b>assembly</b> and flashed onto a <b>LCP-2138 Arm Microcontroller</b>
@@ -52,7 +74,10 @@
                     detection and much more.
                 </p>
             </article>
-            <article>
+
+            <article class="project-item"></article>
+
+            <article class="project-item">
                 <h1><a href="https://github.com/vanpyrzericj/Alphon" target="_">Course Enrollment System Website</a></h1>
                 <p>
                     Helped designed and implemented a course enrollment system for a semester long project at
@@ -66,25 +91,15 @@
                     from development to production and testing.
                 </p>
             </article>
+
+            <article class="project-item"></article>
         </div>
         <!-- PROJECTS -->
     </article>
 
-    <article class="skills">
-        <div>
-            <h2>TECHNICAL KNOWLEDGE</h2>
-            <p>
-                <b>Python, Java, HTML5, CSS3, JavaScript, C++/#, Assembly</b>
-                <br>
-                <b>MySQL, Data Structures, Object Oriented Design</b>
-            </p>
-        </div>
-        <!-- TECHNICAL KNOWLEDGE -->
-    </article>
-
     <article class="contact">
         <div>
-            <h1></h1>
+            <h1>Contact Me</h1>
             <address>
                 4555 Vandever Ave<br>
                 San Deigo, CA 92120<br>

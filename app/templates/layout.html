@@ -2,12 +2,18 @@
 <html>
 
 <head>
-    <title>Taiga Ishida | Portfolio</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/main.css')}}">
-    <meta name="description" content="Taiga Ishida Web Portfolio">
+    {% if title %}
+    <title>Taiga Ishida | {{ title }}</title>
+    {% else %}
+    <title>Taiga Ishida | Portfolio </title>
+    {% endif %}
     <meta name="author" content="Taiga Ishida">
+    <meta name="description" content="Taiga Ishida's Web Portfolio Made In Python
+    Using Flask.">
+    <meta name="keywords" content="HTML, CSS, Python, Portfolio, Taiga, Ishida, Taiga Ishida">
     <meta charset="utf-8">
-    <meta name='viewport' content='initial-scale=1, viewport-fit=cover'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/main.css')}}">
 
 </head>
 
@@ -38,7 +44,7 @@
     {% block content %}{% endblock %}
     <hr id="line">
     <footer>
-        <p>Copright &copy; 2018 Taiga Ishida</p>
+        <p>&copy;Taiga Ishida</p>
     </footer>
 </body>
 
