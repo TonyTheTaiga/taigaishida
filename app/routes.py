@@ -13,4 +13,3 @@ def index():
 @app.route("/picture")
 def picture():
     return render_template("gallery.html", title="Gallery")
-
