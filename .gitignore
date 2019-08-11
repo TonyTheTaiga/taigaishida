@@ -143,10 +143,4 @@ dmypy.json
 
 /.vscode
 
-config.py
-
-app.yaml
-
-appengine_config.py
-
 .gcloudignore
