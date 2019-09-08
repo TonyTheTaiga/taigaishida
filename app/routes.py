@@ -1,15 +1,15 @@
-from app import app
+from app import website
 from flask import render_template
 from app.forms import ContactForm
 
 
-@app.route("/")
-@app.route("/index")
+@website.route("/")
+@website.route("/index")
 def index():
     form = ContactForm()
     return render_template("index.html")
 
 
-@app.route("/picture")
+@website.route("/picture")
 def picture():
     return render_template("gallery.html", title="Gallery")
