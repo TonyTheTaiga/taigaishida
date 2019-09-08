@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-from app import app
+from app import website
 
 
 def main():
-    app.run(debug=True)
+    website.run(debug=True)
 
 
 if __name__ == "__main__":
