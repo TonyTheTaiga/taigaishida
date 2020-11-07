@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<article id="projects">
+    <h2>Projects</h2>
+    <div class="container">
+        <article class="project-item">
+            <h1><a href="https://github.com/TonyTheTaiga/slackbot" target="_">Crypto Tracking Bot For Slack</a></h1>
+            <p>
+                A Slack bot server that adds commands to users in a chat room.<br>Incorporates a python script that
+                fetches crpyto information
+                from coinmarketcap’s API and returns it to users.<br>Implemented a modular design by separating the
+                bot functions from the
+                main functions.<br>Also improved runtime by storing the coin ID’s in a hashmap on startup.
+            </p>
+        </article>
+
+        <article class="project-item">
+            <img src="{{ url_for('static', filename='imgs/slackbotGIF.gif') }}" alt="slackbot demo">
+        </article>
+
+        <article class="project-item">
+            <h1><a href="https://github.com/TonyTheTaiga/Invaders" target="_">Embedded Space Invaders Clone</a></h1>
+            <p>
+                Space Invaders Clone written in <b>assembly</b> and flashed onto a <b>LCP-2138 Arm Microcontroller</b>
+                using Keil5.<br>
+                Made use of the <b>GPIO</b> and <b>UART</b> to receive and transmit data.<br>
+                For example, I used the 7-segment-display to show the score and the LEDs to show life stock.<br>
+                The game required designing and implementing algorithms for movement, attacking, collision
+                detection and much more.
+            </p>
+        </article>
+
+        <article class="project-item"></article>
+
+        <article class="project-item">
+            <h1><a href="https://github.com/vanpyrzericj/Alphon" target="_">Course Enrollment System Website</a></h1>
+            <p>
+                Helped designed and implemented a course enrollment system for a semester long project at
+                University at
+                Buffalo.<br>Students were
+                able to create a account and sign up for courses online through this website.<br>I helped and
+                implement the view functions as
+                well worked on fetching and store data into the database.<br>Throughout this project I learned how
+                to
+                properly use github
+                from development to production and testing.
+            </p>
+        </article>
+
+        <article class="project-item"></article>
+    </div>
+</article>
+
+{{ % endblock % }}

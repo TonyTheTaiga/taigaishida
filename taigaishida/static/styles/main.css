@@ -4,11 +4,11 @@
 }
 
 body {
-  background-color: #fffffa;
+  background-color: #ffffff;
   padding: 0;
   margin: 0;
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  /* padding-left: env(safe-area-inset-left); */
+  /* padding-right: env(safe-area-inset-right); */
   font-family: koushiki;
   font-size: 18px;
   line-height: 1.6;
@@ -84,9 +84,7 @@ a:hover {
   grid-template-columns: 60% 40%;
 }
 
-.project-item {
-}
-
+/* 
 section {
   text-align: center;
   padding-top: 10px;
@@ -96,7 +94,7 @@ section h1 {
   margin: 0;
   padding-top: 10px;
   padding-bottom: 10px;
-}
+} */
 
 article {
   padding-left: 10%;
@@ -123,6 +121,8 @@ article img {
 
 footer {
   text-align: center;
+  position: fixed;
+  bottom:0;
 }
 
 #aboutMe {

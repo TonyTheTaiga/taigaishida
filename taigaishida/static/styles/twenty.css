@@ -1,0 +1,27 @@
+@font-face {
+    font-family: koushiki;
+    src: url("/static/fonts/koushikiT.ttf");
+}
+
+a {
+    text-decoration: none;
+}
+
+a:visited, a:link {
+    color: #802f00;
+}
+
+a:hover {
+    color: #004680;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    background-color: #ffffff;
+    font-family: koushiki;
+    font-size: 16px;
+    line-height: 1.6;
+}
