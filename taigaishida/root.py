@@ -8,11 +8,9 @@ bp = Blueprint('root', __name__, url_prefix='/')
 def index():
     return render_template("root.html")
 
-
-@bp.route("/picture")
-def picture():
+@bp.route("/gallery")
+def gallery():
     return render_template("gallery.html", title="Gallery")
-
 
 @bp.route("/contact")
 def contact():
@@ -20,4 +18,8 @@ def contact():
 
 @bp.route("/chiaki")
 def chiaki():
-    return render_template("chiaki.html")
+    return render_template("chiaki.html", title="CN")
+
+@bp.route("/about")
+def about():
+    return render_template("about.html", title="About")

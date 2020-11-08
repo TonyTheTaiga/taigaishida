@@ -17,36 +17,31 @@
 </head>
 
 <body>
-    <header>
-        <nav id="navigation">
-            <h1>
-                <a href="{{ url_for('root.index') }}">taiga</a>
-            </h1>
-            <ul>
-                <li>
-                    <a href="https://github.com/TonyTheTaiga" target="_">GITHUB</a>
-                </li>
-                <li>
-                    <a href="https://www.linkedin.com/in/taigaishida/" target="_">LINKEDIN</a>
-                </li>
-                <li>
-                    <a href="{{ url_for('root.contact') }}">contact</a>
-                </li>
-                <li>
-                    <a href="{{ url_for('root.picture') }}">gallery</a>
-                </li>
-            </ul>
-        </nav>
-        <!-- header -->
-    </header>
-    <!-- <hr id="line"> -->
-    <main>
-    {% block content %}{% endblock %}
-    <!-- <hr id="line"> -->
-    </main>
-    <footer>
-        <p>&copy;Taiga Ishida</p>
-    </footer>
+    <div id="content-container">
+        <header id="header">
+            <nav id="navigation">
+                <div id="nav-left">
+                    <a href="{{ url_for('root.index') }}" class="nav-element">taiga</a>
+                </div>
+                
+                <div id="nav-right">
+                    <a href="{{ url_for('root.about') }}" class="nav-element">about</a>
+                    <a href="{{ url_for('root.contact') }}" class="nav-element">contact</a>
+                    <a href="{{ url_for('root.gallery') }}" class="nav-element">gallery</a>
+                </div>
+
+            </nav>
+            <!-- header -->
+        </header>
+        <!-- <hr id="line"> -->
+        <main id="body-main">
+        {% block content %}{% endblock %}
+        <!-- <hr id="line"> -->
+        </main>
+        <footer id="footer">
+            <p>&copy;Taiga Ishida</p>
+        </footer>
+    </div>
 </body>
 
 </html>
