@@ -1,9 +1,9 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="picure">
-    <img src="{{ url_for('static', filename='imgs/kinkakuji2.png') }}" alt="kinkakuji">
-    <br>
-    <small id="caption">kinkakuji kyoto japan</small>
-</div>
+<section>
+    <img src="{{ url_for('static', filename='images/kinkakuji2.png') }}" alt="kinkakuji" class="horizontal-image">
+    <img src="{{ url_for('static', filename='images/window_raindrop.jpg') }}" alt="raindrop on window" class="vertical-image">
+
+</section>
 {% endblock %}
