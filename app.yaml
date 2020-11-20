@@ -1,2 +1,2 @@
-runtime: python37
-
+runtime: python38
+entrypoint: gunicorn --bind 0.0.0.0:5000 wsgi:app
