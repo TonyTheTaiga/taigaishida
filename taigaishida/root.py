@@ -16,10 +16,6 @@ def gallery():
 def contact():
     return render_template("contact.html", title="Contact")
 
-@bp.route("/chiaki")
-def chiaki():
-    return render_template("chiaki.html", title="CN")
-
 @bp.route("/about")
 def about():
     return render_template("about.html", title="About")
