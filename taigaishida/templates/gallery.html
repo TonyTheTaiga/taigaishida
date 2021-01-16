@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<section id="gallery">
+        <img src="{{ url_for('static', filename='images/japan/gurico2.jpg') }}" alt="gurico-sign" class="vertical-image">
+        <img src="{{ url_for('static', filename='images/kaikaikiki.jpg') }}" alt="moma-kaikaikiki" class="vertical-image">
+        <img src="{{ url_for('static', filename='images/japan/flowers.jpg') }}" alt="pink-flower-petals" class="horizontal-image">
+        <img src="{{ url_for('static', filename='images/japan/grandma.jpg') }}" alt="grandma" class="horizontal-image">
+        <img src="{{ url_for('static', filename='images/japan/gurico.jpg') }}" alt="gurico-water" class="horizontal-image">
+        <img src="{{ url_for('static', filename='images/japan/kinkakuji.jpg') }}" alt="kinkakuji" class="horizontal-image">
+        <img src="{{ url_for('static', filename='images/delmarcliffs.JPG') }}" alt="del mar cliffs" class="vertical-image">
+        <img src="{{ url_for('static', filename='images/sunsetbirds.JPG') }}" alt="sunset birds" class="vertical-image">
+        <img src="{{ url_for('static', filename='images/delmarsurfer.JPG') }}" alt="del mar surfer" class="vertical-image">
+        <img src="{{ url_for('static', filename='images/airplane_window.JPG') }}" alt="airplane window" class="vertical-image">
+</section>
+
+{% endblock %}

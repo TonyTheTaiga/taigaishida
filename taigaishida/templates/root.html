@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section>
+    <article id="about">
+        <section>
+            <p class="body-paragraph">
+                <span>
+                    <b>Taiga Ishida</b>a&nbsp;
+                    <br>
+                    <b>location</b>: San Diego, USA&nbsp;
+                    <br>
+                    <b>job</b>: software engineer&nbsp;
+                    <br>
+                </span>
+            </p>
+    
+            <p class="body-paragraph">
+                <span>
+                    currently I work in the machine learning/computer vision industry.&nbsp;
+                    <br>
+                    i am actively looking for ways to positively impact people through software and hardware.&nbsp;
+                    <br>
+                    please reach out to me with interesting ideas, i will try my best to help execute your vision.&nbsp;
+                    <br>
+                    hope to hear/work with you soon.&nbsp;
+                </span> 
+            </p>
+        </section>
+    </article>
+    
+    <article id="contact">
+        <section>
+            <p class="body-paragraph">
+                <span>
+                    <b>contact</b>&nbsp;
+                </span>
+            </p>
+
+            <p class="body-paragraph">
+                <span>
+                    <a href="https://github.com/TonyTheTaiga" target="_">github</a>
+                    <br>
+                    <a href="https://www.linkedin.com/in/taigaishida/" target="_">linkedin</a>
+                    <br>
+                    <a href="{{ url_for('static', filename='Resume.pdf') }}" target="_">resume</a>
+                </span>
+            </p>
+    
+            <p class="body-paragraph">
+                <span>
+                    <b>personal</b>: ishidataiga@gmail.com
+                    <br>
+                    <b>work</b>: taigaishida.dev@gmail.com
+                </span>
+            </p>
+        </section>
+    </article>
+</section>
+{% endblock %}

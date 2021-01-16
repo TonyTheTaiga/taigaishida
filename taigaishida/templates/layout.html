@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    {% if title %}
+    <title>Taiga Ishida | {{ title }}</title>
+    {% else %}
+    <title>Taiga Ishida</title>
+    {% endif %}
+    <meta name="author" content="Taiga Ishida">
+    <meta name="description" content="nandeyanenn">
+    <meta name="keywords" content="Taiga, Ishida, Taiga Ishida">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/2021.css') }}">
+</head>
+
+<body>
+    <div id="content-container">
+        <header id="header">
+            <nav id="navigation">
+                <div id="nav-left">
+                    <a href="{{ url_for('root.index') }}" class="nav-element">taiga</a>
+                </div>
+                
+                <div id="nav-right">
+                    <a href="{{ url_for('root.gallery') }}" class="nav-element">gallery</a>
+                </div>
+
+            </nav>
+            <!-- header -->
+        </header>
+        <!-- <hr id="line"> -->
+        <main id="body-main">
+        {% block content %}{% endblock %}
+        <!-- <hr id="line"> -->
+        </main>
+        <footer id="footer">
+            <p>&copy;Taiga Ishida</p>
+        </footer>
+    </div>
+</body>
+
+</html>
