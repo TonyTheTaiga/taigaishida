@@ -1,51 +1,56 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<article id="about">
-    <section>
-        <p class="body-paragraph">
-            <span>
-                Taiga Ishida&nbsp;
-                <br>
-                currently: San Diego, USA&nbsp;
-                <br>
-                photography, software, music&nbsp;
-            </span>
-        </p>
+<section>
+    <article id="about">
+        <section>
+            <p class="body-paragraph">
+                <span>
+                    <b>Taiga Ishida</b> / 25&nbsp;
+                    <br>
+                    <b>location</b>: San Diego, USA&nbsp;
+                    <br>
+                    <b>job</b>: software engineer&nbsp;
+                    <br>
+                    I currently work in the machine learning/computer vision industry.&nbsp;
+                    <br>
+                </span>
+            </p>
+        </section>
+    </article>
+    
+    <article id="contact">
+        <section>
+            <p class="body-paragraph">
+                <span>
+                    <b>contact</b>&nbsp;
+                </span>
+            </p>
 
-        <p class="body-paragraph">
-            <span>
-                right now i am interested in machine learning and computer vision applications&nbsp;
-                <br>
-                currently: software engineer at AI startup
-                <br>
-                please reach out about interesting oppurtunities&nbsp;
-                <br>
-                contact information below&nbsp;
-            </span> 
-        </p>
-    </section>
-</article>
+            <p class="body-paragraph">
+                <span>
+                    <a href="https://github.com/TonyTheTaiga" target="_">github</a>
+                    <br>
+                    <a href="https://www.linkedin.com/in/taigaishida/" target="_">linkedin</a>
+                    <br>
+                    <a href="{{ url_for('static', filename='Resume.pdf') }}" target="_">resume</a>
+                </span>
+            </p>
+    
+            <p class="body-paragraph">
+                <span>
+                    <b>personal</b>: <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a>
+                    <br>
+                    <b>work</b>: <a href="mailto:taigaishida.dev@gmail.com">taigaishida.dev@gmail.com</a>
+                </span>
+            </p>
+        </section>
+    </article>
 
-<article id="contact">
-    <section>
-        <p class="body-paragraph">
-            <span>
-                <a href="https://github.com/TonyTheTaiga" target="_">github</a>
-                <br>
-                <a href="https://www.linkedin.com/in/taigaishida/" target="_">linkedin</a>
-                <br>
-                <a href="{{ url_for('static', filename='Resume.pdf') }}" target="_">resume</a>
-            </span>
-        </p>
-
-        <p class="body-paragraph">
-            <span>
-                ishidataiga@gmail.com
-                <br>
-                taigaishida.dev@gmail.com
-            </span>
-        </p>
-    </section>
-</article>
+    <article id="playlists">
+        <section>
+            <iframe src="https://open.spotify.com/embed/playlist/0bHQ7MEnKM5MHWGlg3cHBX" width="100%" height="900" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+        </section>
+    </article>
+</section>
 {% endblock %}

@@ -1,6 +1,6 @@
 @font-face {
     font-family: koushiki;
-    src: url("/static/fonts/koushikiT.ttf");
+    src: url("/static/fonts/KoushikiSans-Thin.ttf");
 }
 
 a {
@@ -28,7 +28,7 @@ html, body {
 
 iframe {
     display: block;
-    border-style:none;
+    border-style: inset;
     margin: auto;
     padding-bottom: 1rem;
 }
@@ -65,19 +65,19 @@ iframe {
 }
 
 #about {
-    padding-top: 2vh;
+    padding-top: 7.5vh;
     margin: auto;
     width: 65%;
 }
 
 #contact {
-    padding-top: 5vh;
+    padding-top: 7.5vh;
     margin: auto;
     width: 50%;
 }
 
 #playlists {
-    padding-top: 5vh;
+    padding-top: 7.5vh;
     margin: auto;
     width: 50%;
 }
@@ -96,31 +96,38 @@ iframe {
 
 .horizontal-image {
     display: block;
+    margin-top: 1rem;
     margin-left: auto;
     margin-right: auto;
-    max-width: 40%;
+    max-width: 50%;
     height: auto;
-    padding-bottom: 1rem;
+    /* padding-bottom: 1rem; */
 }
 
 .vertical-image {
     display: block;
+    margin-top: 1rem;
     margin-left: auto;
     margin-right: auto;
-    max-width: 40%;
+    max-width: 50%;
     height: auto;
-    padding-bottom: 1rem;
 }
 
 @media (max-width: 1180px) {
     #about {
-        padding-top: 10vh;
+        padding-top: 5vh;
         margin: auto;
         width: 80%;
     }
+
+    #playlists {
+        margin-left: 0%;
+        margin-right: 0%;
+        width: 100%;
+    }
     
     #contact {
-        padding-top: 10vh;
+        padding-top: 2.5vh;
         margin-top: auto;
         margin-left: auto;
         margin-right: auto;
@@ -130,23 +137,20 @@ iframe {
 
     .horizontal-image {
         display: block;
-        margin-top: 2.5vh;
+        margin-top: 1.0vh;
         margin-left: auto;
         margin-right: auto;
-        /* margin-bottom: 2.5vh; */
         max-width: 95%;
         height: auto;
-        /* padding-bottom: 1rem; */
     }
 
     .vertical-image {
         display: block;
-        margin-top: 2.5vh;
+        margin-top: 1.0vh;
         margin-left: auto;
         margin-right: auto;
         max-width: 95%;
         height: auto;
-        padding-bottom: 1rem;
     }
 
     #footer {
