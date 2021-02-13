@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section>
+    <article id="about">
+        <section>
+            <p class="body-paragraph">
+                <span>
+                    <b>石田大賀</b> / 1995&nbsp;
+                    <br>
+                    ソフトウェアエンジニア&nbsp;
+                    <br>
+                    カリフォルニア, アメリカ&nbsp;
+                    <br>
+                    I currently work in the machine learning/computer vision industry.&nbsp;
+                </span>
+            </p>
+        </section>
+    </article>
+    
+    <article id="contact">
+        <section>
+            <p class="body-paragraph">
+                <span>
+                    <b>概要</b>&nbsp;
+                </span>
+            </p>
+            <p class="body-paragraph">
+                <span>
+                    <a href="https://github.com/TonyTheTaiga" target="_">github</a>
+                    <br>
+                    <a href="https://www.linkedin.com/in/taigaishida/" target="_">linkedin</a>
+                    <br>
+                    <a href="{{ url_for('static', filename='Resume.pdf') }}" target="_">resume</a>
+                    <br>
+                    <br>
+                </span>
+            </p>
+            
+            <p class="body-paragraph">
+                <span>
+                    <b>お問い合わせ&nbsp;</b>&nbsp;
+                </span>
+            </p>
+
+            <p class="body-paragraph">
+                <span>
+                    <!-- <b>個人</b>: <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a> -->
+                    <!-- <br> -->
+                    <a href="mailto:taigaishida.dev@gmail.com">taigaishida.dev@gmail.com</a>
+                </span>
+            </p>
+        </section>
+    </article>
+
+    <article id="playlists">
+        <section>
+            <iframe src="https://open.spotify.com/embed/playlist/0bHQ7MEnKM5MHWGlg3cHBX" width="100%" height="500" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+        </section>
+    </article>
+</section>
+{% endblock %}

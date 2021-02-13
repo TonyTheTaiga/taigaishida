@@ -14,4 +14,4 @@ def about():
 
 @bp.route("/about/jp")
 def about_jp():
-    return render_template("about_jp.html", title="About")
+    return render_template("about_jp.html", title="About/JP")
