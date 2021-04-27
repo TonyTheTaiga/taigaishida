@@ -1,7 +1,7 @@
 import os
 from PIL import Image
 
-TARGET_DIR = 'images'
+TARGET_DIR = 'uncompressed_images'
 OUTPUT_DIR = 'compressed_images'
 
 
