@@ -1,6 +1,6 @@
 import unittest, sys
 
-sys.path.append('..')
+sys.path.append("..")
 
 from app import website
 
@@ -11,9 +11,9 @@ class TestWebsite(unittest.TestCase):
         self.app.testing = True
 
     def test_homepage_sc(self):
-        response = self.app.get('/')
+        response = self.app.get("/")
         self.assertEqual(response.status_code, 200)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
