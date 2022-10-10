@@ -1,1 +1,1 @@
-gunicorn --bind 0.0.0.0:5000 main:app
+gunicorn --bind 0.0.0.0:$PORT main:app
