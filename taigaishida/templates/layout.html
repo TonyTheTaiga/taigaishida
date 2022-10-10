@@ -9,33 +9,30 @@
     {% endif %}
     <meta name="author" content="Taiga Ishida">
     <meta name="description" content="nandeyanenn">
-    <meta name="keywords" content="Taiga, Ishida, Taiga Ishida">
+    <meta name="keywords" content="Taiga, Ishida, Taiga Ishida, machine learning, ai, software, engineer, machine, learning">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{url_for('static',filename='styles/output.css')}}">
 </head>
 
-<body>
-    <div class="font-main" id="content-container">
-        <header  id="header">
-            <nav id="navigation">
-                <div id="nav-left">
-                    <a href="{{ url_for('taiga.index') }}" class="nav-element">Taiga</a>
-                </div>
-                
-                <div id="nav-right">
-                    <a href="{{ url_for('taiga.about') }}" class="nav-element">About</a>
-                </div>
-            </nav>
-            <!-- header -->
-        </header>
-        <main id="body-main">
-        {% block content %}{% endblock %}
-        </main>
-        <footer id="footer">
-            <p>&copy;Taiga Ishida</p>
-        </footer>
-    </div>
+<body class="font-main">
+    <header id="header">
+        <nav id="navigation">
+            <ul id="nav-links">
+                <li><a href="{{ url_for('taiga.index') }}" class="nav-element">Taiga</a></li>
+                <li><a href="{{ url_for('taiga.about') }}" class="nav-element">About</a></li>
+            </ul>
+        </nav>
+    </header>
+    <!-- header -->
+    <main id="body-main">
+    {% block content %}{% endblock %}
+    </main>
+    <!-- main -->
+    <footer id="footer">
+        <p>&copy;Taiga Ishida</p>
+    </footer>
+    <!-- footer -->
 </body>
 
 </html>
