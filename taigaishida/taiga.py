@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request
 
-bp = Blueprint("root", __name__, url_prefix="/")
+bp = Blueprint("taiga", __name__, url_prefix="/")
 
 
 @bp.route("")
