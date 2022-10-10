@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: "KoushikiSans";
+    /* src: url("/static/fonts/koushiki/KoushikiSans-Thin.ttf"); */
+    src: url("/static/fonts/MPLUS1-VariableFont_wght.ttf");
+}
+
+@font-face {
+    font-family: "MPlus1";
+    src: url("/static/fonts/MPLUS1-VariableFont_wght.ttf");
+}

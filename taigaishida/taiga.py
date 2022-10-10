@@ -12,8 +12,3 @@ def index():
 @bp.route("/about")
 def about():
     return render_template("about.html", title="About")
-
-
-@bp.route("/about/jp")
-def about_jp():
-    return render_template("about_jp.html", title="About/JP")

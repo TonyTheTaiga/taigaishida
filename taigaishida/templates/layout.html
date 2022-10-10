@@ -12,12 +12,12 @@
     <meta name="keywords" content="Taiga, Ishida, Taiga Ishida">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/2021.css') }}">
+    <link rel="stylesheet" href="{{url_for('static',filename='dist/css/output.css')}}">
 </head>
 
 <body>
-    <div id="content-container">
-        <header id="header">
+    <div class="font-main" id="content-container">
+        <header  id="header">
             <nav id="navigation">
                 <div id="nav-left">
                     <a href="{{ url_for('taiga.index') }}" class="nav-element">Taiga</a>
@@ -26,10 +26,6 @@
                 <div id="nav-right">
                     <a href="{{ url_for('taiga.about') }}" class="nav-element">About</a>
                 </div>
-                
-                <!-- <div id="nav-right">
-                    <a href="http://www.miniplaylist.co" target="_" class="nav-element">miniplaylist</a>
-                </div> -->
             </nav>
             <!-- header -->
         </header>
