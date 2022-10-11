@@ -1,27 +1,9 @@
-{% extends "layout.html" %}
+{% extends "layout.html" %} {% block content %}
 
-{% block content %}
-
-<section id="gallery">
-        <img src="{{ url_for('static', filename='compressed_images/balcony2.jpg') }}" alt="balcony" class="horizontal-image misc">
-        <img src="{{ url_for('static', filename='compressed_images/areaclosed.jpg') }}" alt="del mar cliffs" class="vertical-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/birds.jpg') }}" alt="del mar cliffs" class="vertical-image misc">
-        <img src="{{ url_for('static', filename='compressed_images/fletcher.jpg') }}" alt="fletcher cove" class="vertical-image misc">
-        <img src="{{ url_for('static', filename='compressed_images/gurico.jpg') }}" alt="gurico-water" class="horizontal-image japan">
-        <img src="{{ url_for('static', filename='compressed_images/delmarsurfer.jpg') }}" alt="del mar surfer" class="vertical-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/delmarcliffs.jpg') }}" alt="del mar cliffs" class="vertical-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/sunsetbirds.jpg') }}" alt="sunset birds" class="vertical-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/cove.jpg') }}" alt="la jolla cove" class="vertical-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/life_guard.jpg') }}" alt="life guard" class="horizontal-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/cardiff1.jpg') }}" alt="cardiff pcg" class="vertical-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/torrey_pines_runners.jpg') }}" alt="torrey pines" class="horizontal-image beach">
-        <img src="{{ url_for('static', filename='compressed_images/cowels1.jpg') }}" alt="self portrait shadow" class="horizontal-image trail">
-        <img src="{{ url_for('static', filename='compressed_images/climber_views.jpg') }}" alt="climber" class="vertical-image trail">
-        <img src="{{ url_for('static', filename='compressed_images/dj.jpg') }}" alt="dj" class="vertical-image misc">
-        <img src="{{ url_for('static', filename='compressed_images/traffic_lights.jpg') }}" alt="traffic lights" class="vertical-image misc">
-        <img src="{{ url_for('static', filename='compressed_images/airplane_window.jpg') }}" alt="airplane window" class="vertical-image misc">
-        <img src="{{ url_for('static', filename='compressed_images/dont_miss_it.jpg') }}" alt="rainbow" class="vertical-image person">
-        <img src="{{ url_for('static', filename='compressed_images/exit.jpg') }}" alt="exit" class="vertical-image misc">
+<section class="flex justify-center flex-col items-center">
+  {% for src in gallery %}
+  <img src="{{ src }}" alt="test" width="80%" />
+  {% endfor %}
 </section>
 
 {% endblock %}

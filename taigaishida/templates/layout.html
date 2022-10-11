@@ -1,45 +1,38 @@
 <!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     {% if title %}
     <title>Taiga Ishida | {{ title }}</title>
     {% else %}
     <title>Taiga Ishida</title>
     {% endif %}
-    <meta name="author" content="Taiga Ishida">
-    <meta name="description" content="nandeyanenn">
-    <meta name="keywords" content="Taiga, Ishida, Taiga Ishida">
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/2021.css') }}">
-</head>
+    <meta name="author" content="Taiga Ishida" />
+    <meta name="description" content="nandeyanenn" />
+    <meta
+      name="keywords"
+      content="Taiga, Ishida, Taiga Ishida, machine learning, ai, software, engineer, machine, learning"
+    />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{url_for('static',filename='styles/output.css')}}"
+    />
+  </head>
 
-<body>
-    <div id="content-container">
-        <header id="header">
-            <nav id="navigation">
-                <div id="nav-left">
-                    <a href="{{ url_for('taiga.index') }}" class="nav-element">Taiga</a>
-                </div>
-                
-                <div id="nav-right">
-                    <a href="{{ url_for('taiga.about') }}" class="nav-element">About</a>
-                </div>
-                
-                <!-- <div id="nav-right">
-                    <a href="http://www.miniplaylist.co" target="_" class="nav-element">miniplaylist</a>
-                </div> -->
-            </nav>
-            <!-- header -->
-        </header>
-        <main id="body-main">
-        {% block content %}{% endblock %}
-        </main>
-        <footer id="footer">
-            <p>&copy;Taiga Ishida</p>
-        </footer>
-    </div>
-</body>
-
+  <body class="font-main bg-white dark:bg-black text-black dark:text-white">
+    <header id="header" class="mt-5 lg:mt-20 mx-8 lg:mx-20">
+      <nav id="navigation" class="text-md lg:text-5xl flex items-end">
+        <a href="{{ url_for('taiga.index') }}" class="mr-2 lg:mr-4">Taiga</a>
+        <a href="{{ url_for('taiga.about') }}">Contact</a>
+      </nav>
+    </header>
+    <!-- header -->
+    <main id="body-main">{% block content %}{% endblock %}</main>
+    <!-- main -->
+    <footer id="footer" class="text-center text-xs">
+      <p>&copy;Taiga Ishida</p>
+    </footer>
+    <!-- footer -->
+  </body>
 </html>
