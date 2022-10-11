@@ -16,9 +16,9 @@ with open(Path(__file__).parent.resolve() / "static" / "metadata.json", "r") as 
 
 
 @bp.route("")
-@bp.route("/index")
-def index():
-    return render_template("index.html", gallery=metadata.gallery)
+@bp.route("/gallery")
+def gallery():
+    return render_template("gallery.html", gallery=metadata.gallery)
 
 
 @bp.route("/about")
