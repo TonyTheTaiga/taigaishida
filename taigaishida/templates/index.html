@@ -1,9 +1,9 @@
-{% extends "layout.html" %}
+{% extends "layout.html" %} {% block content %}
 
-{% block content %}
-
-<section>
-        <img src="https://storage.googleapis.com/taiga-ishida-public/website-images/airplane_window.jpg", alt="test". width="10%">
+<section class="flex justify-center flex-col items-center">
+  {% for src in gallery %}
+  <img src="{{ src }}" alt="test" width="80%" />
+  {% endfor %}
 </section>
 
 {% endblock %}
