@@ -3,3 +3,6 @@ dev-css:
 
 build-css:
 	npx tailwindcss -o taigaishida/static/styles/2023.css --minify
+
+lint:
+	black -l 120 .
