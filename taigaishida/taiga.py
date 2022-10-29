@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+from typing import Optional, List
 
 from flask import Blueprint, render_template
 from pydantic import BaseModel
@@ -7,8 +8,13 @@ from pydantic import BaseModel
 bp = Blueprint("taiga", __name__, url_prefix="/")
 
 
+class GalleryItem(BaseModel):
+    url: str
+    name: Optional[str] = "???"
+
+
 class MetaData(BaseModel):
-    gallery: list
+    gallery: List[GalleryItem]
 
 
 with open(Path(__file__).parent.resolve() / "static" / "metadata.json", "r") as fp:

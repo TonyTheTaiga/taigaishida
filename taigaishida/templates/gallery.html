@@ -3,8 +3,8 @@
 <section
   class="grid grid-cols-2 lg:grid-cols-4 grid-rows-flow gap-1 items-center"
 >
-  {% for src, cls in gallery %}
-  <img src="{{ src }}" alt="test" class="{{ cls }}" />
+  {% for item in gallery %}
+  <img src="{{ item.url }}" alt="{{ item.name }}" />
   {% endfor %}
 </section>
 

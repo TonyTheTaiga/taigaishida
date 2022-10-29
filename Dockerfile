@@ -2,10 +2,9 @@ FROM python:3
 
 WORKDIR /app
 
+COPY ./requirements.txt /app/requirements.txt
+RUN pip install --trusted-host pypi.python.org -r requirements.txt
 COPY . /app
 
-RUN pip install --trusted-host pypi.python.org -r requirements.txt
-
-EXPOSE 5000
-
-CMD ["python3", "main.py"]
+ENV PORT=6001
+CMD ["./start-script.sh"]
