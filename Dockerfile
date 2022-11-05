@@ -7,4 +7,4 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 COPY . /app
 
 ENV PORT=6001
-CMD ["./start-script.sh"]
+CMD ["python3", "main.py"]

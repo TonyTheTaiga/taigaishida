@@ -30,3 +30,8 @@ def gallery():
 @bp.route("/about")
 def about():
     return render_template("about.html", title="About")
+
+
+@bp.route("/js")
+def js():
+    return render_template("js.html", title="JS")

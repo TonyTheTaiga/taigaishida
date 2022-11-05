@@ -4,7 +4,7 @@
   class="grid grid-cols-2 lg:grid-cols-4 grid-rows-flow gap-1 items-center"
 >
   {% for item in gallery %}
-  <img src="{{ item.url }}" alt="{{ item.name }}" />
+  <img src="{{ item.url }}" alt="{{ item.name }}" loading="lazy" />
   {% endfor %}
 </section>
 
