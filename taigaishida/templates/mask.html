@@ -21,12 +21,8 @@
   const canvas = document.getElementById("canvas");
   const context = canvas.getContext("2d");
   const image = document.getElementById("output");
-  const canvasOffsetX = canvas.offsetLeft;
-  const canvasOffsetY = canvas.offsetTop;
-
-  function drawImage(image) {
-    context.drawImage(image, 0, 0);
-  }
+  let canvasOffsetX;
+  let canvasOffsetY;
 
   function loadFile(event) {
     image.src = URL.createObjectURL(event.target.files[0]);
@@ -34,11 +30,13 @@
       canvas.width = this.width;
       canvas.height = this.height;
       canvas.crossOrigin = "anonymous";
-      drawImage(image);
+      context.drawImage(image, 0, 0);
     };
     canvas.style.display = "inline";
-
     label.style.display = "none";
+
+    canvasOffsetX = canvas.offsetLeft;
+    canvasOffsetY = canvas.offsetTop;
   }
 
   let isPainting = false;
@@ -52,10 +50,13 @@
       return;
     }
     context.lineWidth = lineWidth;
-    context.lineColor = lineColor;
+    context.strokeStyle = lineColor;
     context.lineCap = "round";
 
-    context.lineTo(event.clientX - canvasOffsetX, event.clientY - 160);
+    context.lineTo(
+      event.clientX - canvasOffsetX,
+      event.clientY - canvasOffsetY
+    );
     context.stroke();
   }
 
