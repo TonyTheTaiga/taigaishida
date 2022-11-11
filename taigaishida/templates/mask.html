@@ -49,8 +49,8 @@
     context.lineCap = "round";
 
     context.lineTo(
-      event.clientX - canvas.offsetLeft,
-      event.clientY - canvas.offsetTop
+      event.pageX - canvas.offsetLeft,
+      event.pageY - canvas.offsetTop
     );
     context.stroke();
   }
