@@ -1,6 +1,6 @@
 {% extends "layout.html" %} {% block content %}
 
-<section class="place-items-center">
+<section class="grid place-items-center h-screen">
   <input
     type="file"
     accept="image/*"
@@ -21,8 +21,6 @@
   const canvas = document.getElementById("canvas");
   const context = canvas.getContext("2d");
   const image = document.getElementById("output");
-  let canvasOffsetX;
-  let canvasOffsetY;
 
   function loadFile(event) {
     image.src = URL.createObjectURL(event.target.files[0]);
@@ -34,9 +32,6 @@
     };
     canvas.style.display = "inline";
     label.style.display = "none";
-
-    canvasOffsetX = canvas.offsetLeft;
-    canvasOffsetY = canvas.offsetTop;
   }
 
   let isPainting = false;
@@ -54,8 +49,8 @@
     context.lineCap = "round";
 
     context.lineTo(
-      event.clientX - canvasOffsetX,
-      event.clientY - canvasOffsetY
+      event.clientX - canvas.offsetLeft,
+      event.clientY - canvas.offsetTop
     );
     context.stroke();
   }
@@ -66,12 +61,25 @@
     startY = e.clientY;
   });
 
+  canvas.addEventListener("touchstart", (e) => {
+    isPainting = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+
   canvas.addEventListener("mouseup", (e) => {
     isPainting = false;
     context.stroke();
     context.beginPath();
   });
+  canvas.addEventListener("touchend", (e) => {
+    isPainting = false;
+    context.stroke();
+    context.beginPath();
+  });
+
   canvas.addEventListener("mousemove", draw);
+  canvas.addEventListener("touchmove", draw);
 </script>
 
 {% endblock %}
