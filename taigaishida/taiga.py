@@ -35,3 +35,8 @@ def about():
 @bp.route("/js")
 def js():
     return render_template("js.html", title="JS")
+
+
+@bp.route("/mask")
+def mask():
+    return render_template("mask.html")
