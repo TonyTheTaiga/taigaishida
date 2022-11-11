@@ -1,16 +1,18 @@
 {% extends "layout.html" %} {% block content %}
 
-<video
-  autoplay
-  playsinline
-  id="video"
-  style="
-    -webkit-transform: scaleX(-1);
-    transform: scaleX(-1);
-    width: auto;
-    height: auto;
-  "
-></video>
+<section class="grid place-items-center h-screen">
+  <video
+    autoplay
+    playsinline
+    id="video"
+    style="
+      -webkit-transform: scaleX(-1);
+      transform: scaleX(-1);
+      width: auto;
+      height: auto;
+    "
+  ></video>
+</section>
 
 <script type="text/javascript">
   async function cameraSetup() {
