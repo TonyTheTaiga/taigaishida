@@ -25,10 +25,10 @@
   function loadFile(event) {
     image.src = URL.createObjectURL(event.target.files[0]);
     image.onload = function () {
-      canvas.width = this.width;
-      canvas.height = this.height;
+      canvas.width = this.width * 0.5;
+      canvas.height = this.height * 0.5;
       canvas.crossOrigin = "anonymous";
-      context.drawImage(image, 0, 0);
+      context.drawImage(image, 0, 0, this.width * 0.5, this.height * 0.5);
     };
     canvas.style.display = "inline";
     label.style.display = "none";
