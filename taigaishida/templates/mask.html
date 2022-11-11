@@ -61,38 +61,50 @@
     startY = e.clientY;
   });
 
-  canvas.addEventListener("touchstart", (e) => {
-    if (e.target == canvas) {
-      e.preventDefault();
-    }
+  canvas.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.target == canvas) {
+        e.preventDefault();
+      }
 
-    isPainting = true;
-    startX = e.clientX;
-    startY = e.clientY;
-  });
+      isPainting = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    },
+    false
+  );
 
   canvas.addEventListener("mouseup", (e) => {
     isPainting = false;
     context.stroke();
     context.beginPath();
   });
-  canvas.addEventListener("touchend", (e) => {
-    if (e.target == canvas) {
-      e.preventDefault();
-    }
+  canvas.addEventListener(
+    "touchend",
+    (e) => {
+      if (e.target == canvas) {
+        e.preventDefault();
+      }
 
-    isPainting = false;
-    context.stroke();
-    context.beginPath();
-  });
+      isPainting = false;
+      context.stroke();
+      context.beginPath();
+    },
+    false
+  );
 
   canvas.addEventListener("mousemove", draw);
-  canvas.addEventListener("touchmove", (e) => {
-    if (e.target == canvas) {
-      e.preventDefault();
-    }
-    draw(e);
-  });
+  canvas.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.target == canvas) {
+        e.preventDefault();
+      }
+      draw(e);
+    },
+    false
+  );
 </script>
 
 {% endblock %}
