@@ -1,0 +1,76 @@
+{% extends "layout.html" %} {% block content %}
+
+<section class="place-items-center">
+  <input
+    type="file"
+    accept="image/*"
+    name="image"
+    id="file"
+    onchange="loadFile(event)"
+    style="display: none"
+  />
+  <label for="file" style="cursor: pointer" id="upload-label"
+    >Upload Image</label
+  >
+  <img id="output" crossorigin="anonymous" style="display: none" />
+  <canvas id="canvas" style="display: none"></canvas>
+</section>
+
+<script>
+  const label = document.getElementById("upload-label");
+  const canvas = document.getElementById("canvas");
+  const context = canvas.getContext("2d");
+  const image = document.getElementById("output");
+  const canvasOffsetX = canvas.offsetLeft;
+  const canvasOffsetY = canvas.offsetTop;
+
+  function drawImage(image) {
+    context.drawImage(image, 0, 0);
+  }
+
+  function loadFile(event) {
+    image.src = URL.createObjectURL(event.target.files[0]);
+    image.onload = function () {
+      canvas.width = this.width;
+      canvas.height = this.height;
+      canvas.crossOrigin = "anonymous";
+      drawImage(image);
+    };
+    canvas.style.display = "inline";
+
+    label.style.display = "none";
+  }
+
+  let isPainting = false;
+  let lineWidth = 100;
+  let lineColor = "#FFFFFF";
+  let startX;
+  let startY;
+
+  function draw(event) {
+    if (!isPainting) {
+      return;
+    }
+    context.lineWidth = lineWidth;
+    context.lineColor = lineColor;
+    context.lineCap = "round";
+
+    context.lineTo(event.clientX - canvasOffsetX, event.clientY - 160);
+    context.stroke();
+  }
+
+  canvas.addEventListener("mousedown", (e) => {
+    isPainting = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+
+  canvas.addEventListener("mouseup", (e) => {
+    isPainting = false;
+    context.stroke();
+    context.beginPath();
+  });
+  canvas.addEventListener("mousemove", draw);
+</script>
+
+{% endblock %}
