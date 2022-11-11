@@ -1,0 +1,22 @@
+{% extends "layout.html" %} {% block content %}
+
+<section class="grid place-items-center h-screen">
+  <video autoplay="true" id="video"></video>
+</section>
+
+<script type="text/javascript">
+  var video = document.querySelector("#video");
+
+  if (navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then(function (stream) {
+        video.srcObject = stream;
+      })
+      .catch(function (err0r) {
+        console.log("Something went wrong!");
+      });
+  }
+</script>
+
+{% endblock %}
