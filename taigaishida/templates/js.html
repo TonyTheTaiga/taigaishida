@@ -5,18 +5,21 @@
 </section>
 
 <script type="text/javascript">
-  var video = document.querySelector("#video");
+  async function cameraSetup() {
+    video = document.getElementById("video");
 
-  if (navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then(function (stream) {
-        video.srcObject = stream;
-      })
-      .catch(function (err0r) {
-        console.log("Something went wrong!");
-      });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: "user",
+        // height: { ideal: 1920 },
+        // width: { ideal: 1920 },
+      },
+    });
+    video.srcObject = stream;
   }
+
+  cameraSetup();
 </script>
 
 {% endblock %}
