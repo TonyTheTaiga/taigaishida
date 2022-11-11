@@ -26,8 +26,9 @@
     image.src = URL.createObjectURL(event.target.files[0]);
     image.onload = function () {
       let scale = 1.0;
-      if (this.width > window.innerWidth * 0.6) {
-        scale = (window.innerWidth * 0.6) / this.width;
+      max_size = window.innerWidth * 0.8;
+      if (this.width > max_size) {
+        scale = max_size / this.width;
       }
       canvas.width = this.width * scale;
       canvas.height = this.height * scale;
@@ -39,7 +40,17 @@
   }
 
   let isPainting = false;
-  let lineWidth = 100;
+  let lineWidth;
+  if (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    )
+  ) {
+    lineWidth = 25;
+  } else {
+    lineWidth = 150;
+  }
+  console.log(lineWidth);
   let lineColor = "#FFFFFF";
   let startX;
   let startY;
