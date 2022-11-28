@@ -1,71 +1,71 @@
 {
     "gallery": [
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/airplane_window.webp",
+            "id": "airplane_window.webp",
             "name": "airplane window"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/delmarsurfer.webp"
+            "id": "delmarsurfer.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/delmarbeach.webp"
+            "id": "delmarbeach.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/delmarcliffs.webp"
+            "id": "delmarcliffs.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/torrey_pines_runners.webp"
+            "id": "torrey_pines_runners.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/cardiff1.webp"
+            "id": "cardiff1.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/tp_trail10.webp"
+            "id": "tp_trail10.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/tp_trail2.webp"
+            "id": "tp_trail2.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/sd_building.webp"
+            "id": "sd_building.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/climber.webp"
+            "id": "climber.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/sunsetbirds.webp"
+            "id": "sunsetbirds.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/first.webp"
+            "id": "first.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/fletcher.webp"
+            "id": "fletcher.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/lajolla.webp"
+            "id": "lajolla.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/gurico2.webp"
+            "id": "gurico2.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/kaikaikiki.webp"
+            "id": "kaikaikiki.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/cove.webp"
+            "id": "cove.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/lifeguard.webp"
+            "id": "lifeguard.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/tp_trail5.webp"
+            "id": "tp_trail5.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/tp_trail8.webp"
+            "id": "tp_trail8.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/traffic_lights.webp"
+            "id": "traffic_lights.webp"
         },
         {
-            "url": "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/exit.webp"
+            "id": "exit.webp"
         }
     ]
 }
