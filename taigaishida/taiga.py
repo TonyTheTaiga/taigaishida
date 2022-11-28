@@ -1,11 +1,17 @@
+from typing import List, Optional
 from pathlib import Path
 import json
-from typing import Optional, List
 
-from flask import Blueprint, render_template
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-bp = Blueprint("taiga", __name__, url_prefix="/")
+app = FastAPI()
+
+app.mount("/static", StaticFiles(directory=Path(__file__).parent.resolve() / "static"), name="static")
+templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
 
 class GalleryItem(BaseModel):
@@ -21,22 +27,12 @@ with open(Path(__file__).parent.resolve() / "static" / "metadata.json", "r") as 
     metadata = MetaData(**json.loads(fp.read()))
 
 
-@bp.route("")
-@bp.route("/gallery")
-def gallery():
-    return render_template("gallery.html", gallery=metadata.gallery)
+@app.get("/gallery", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
+async def gallery(request: Request):
+    return templates.TemplateResponse("gallery.html", {"request": request, "gallery": metadata.gallery})
 
 
-@bp.route("/about")
-def about():
-    return render_template("about.html", title="About")
-
-
-@bp.route("/js")
-def js():
-    return render_template("js.html", title="JS")
-
-
-@bp.route("/mask")
-def mask():
-    return render_template("mask.html")
+@app.get("/about", response_class=HTMLResponse)
+async def about(request: Request):
+    return templates.TemplateResponse("about.html", {"request": request})
