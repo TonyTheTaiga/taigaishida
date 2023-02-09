@@ -1,10 +1,15 @@
 {% extends "layout.html" %} {% block content %}
 
 <section
-  class="grid grid-cols-2 lg:grid-cols-4 grid-flow-row gap-1 items-center"
+  class="grid grid-cols-2 lg:grid-cols-4 grid-flow-row gap-4 items-center"
 >
   {% for item in gallery %}
-  <img src="{{ item.url }}" alt="{{ item.name }}" loading="lazy" />
+  <img
+    src="{{ item.url }}"
+    alt="{{ item.name }}"
+    loading="lazy"
+    class="shadow-2xl"
+  />
   {% endfor %}
 </section>
 

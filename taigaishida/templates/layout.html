@@ -22,18 +22,18 @@
 
   <body
     id="body"
-    class="font-main bg-white dark:bg-black text-black dark:text-white"
+    class="font-koushiki bg-white dark:bg-gradient-to-br from-zinc-700 to-neutral-900 text-black dark:text-white"
   >
-    <header id="header" class="mt-4 lg:mt-20 mx-4 lg:mx-20 mb-10">
+    <header id="header" class="mt-4 lg:my-10 mx-4 lg:mx-4 mb-10">
       <nav id="navigation" class="text-md lg:text-5xl flex">
         <a href="{{ url_for('gallery') }}" class="mr-2 lg:mr-4">01</a>
         <a href="{{ url_for('about') }}">00</a>
       </nav>
     </header>
     <!-- header -->
-    <main id="main">{% block content %}{% endblock %}</main>
+    <main id="main" class="mx-4">{% block content %}{% endblock %}</main>
     <!-- main -->
-    <footer id="footer" class="text-center text-xs">
+    <footer id="footer" class="text-center text-xs my-2">
       <p>&copy;Taiga Ishida</p>
     </footer>
     <!-- footer -->
