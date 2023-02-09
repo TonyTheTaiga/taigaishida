@@ -21,7 +21,7 @@ templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templat
 
 
 class EnvConfig(BaseSettings):
-    planetarium_url: str = Field("http://0.0.0.0:6002/static/images/", env="PLANETARIUM_URL")
+    planetarium_url: str = Field("https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/", env="PLANETARIUM_URL")
 
 
 env = EnvConfig()
