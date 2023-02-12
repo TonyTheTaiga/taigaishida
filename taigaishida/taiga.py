@@ -21,7 +21,9 @@ templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templat
 
 
 class EnvConfig(BaseSettings):
-    planetarium_url: str = Field("https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/", env="PLANETARIUM_URL")
+    planetarium_url: str = Field(
+        "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/", env="PLANETARIUM_URL"
+    )
 
 
 env = EnvConfig()
@@ -47,7 +49,9 @@ with open(Path(__file__).parent.resolve() / "static" / "metadata.json", "r") as 
 @app.get("/gallery", response_class=HTMLResponse)
 @app.get("/", response_class=HTMLResponse)
 async def gallery(request: Request):
-    return templates.TemplateResponse("gallery.html", {"request": request, "gallery": metadata.gallery})
+    return templates.TemplateResponse(
+        "gallery.html", {"request": request, "gallery": [item.url for item in metadata.gallery]}
+    )
 
 
 @app.get("/about", response_class=HTMLResponse)

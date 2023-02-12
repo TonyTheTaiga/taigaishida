@@ -12,3 +12,14 @@
     font-family: "MPlus1";
     src: url("/static/fonts/MPLUS1-VariableFont_wght.ttf");
 }
+
+.image-transition {
+  transition: all 0.5s ease-in-out;
+}
+
+.h-screen-95 {
+  height: 95vh;
+}
+.h-screen-5 {
+  height: 5vh;
+}
