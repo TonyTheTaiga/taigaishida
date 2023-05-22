@@ -78,7 +78,7 @@ async def about(request: Request):
 def upload_image(image: UploadFile = File(...)):
     image = convert_bytes_to_image(image.file.read())
     webp_image_bytes = convert_image_to_bytes(
-        image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 100]
+        image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 90]
     )
     # Generate a new filename
     filename = f"{IMAGE_PREFIX}/{uuid4()}.webp"
