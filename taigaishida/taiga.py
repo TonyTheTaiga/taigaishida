@@ -1,7 +1,6 @@
 from typing import List, Optional
 from pathlib import Path
 import os
-import json
 import logging
 
 from fastapi import FastAPI, Request, Depends
@@ -39,7 +38,7 @@ class GalleryItem(BaseModel):
         return os.path.join(GCS_API_ROOT, IMAGE_BUCKET, self.id)
 
 
-def get_gallery_items():
+def get_gallery_items() -> List[GalleryItem]:
     blobs = client.list_blobs(IMAGE_BUCKET, prefix=IMAGE_PREFIX)
     return [
         GalleryItem(id=blob.name, name=blob.name.split("/")[-1])
