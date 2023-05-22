@@ -85,7 +85,7 @@ def upload_image(image: UploadFile = File(...), passphrase: str = Form(...)):
 
     image = convert_bytes_to_image(image.file.read())
     webp_image_bytes = convert_image_to_bytes(
-        image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 90]
+        image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 75]
     )
 
     filename = f"{IMAGE_PREFIX}/{uuid4()}.webp"
