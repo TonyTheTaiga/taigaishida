@@ -40,6 +40,9 @@ def convert_bytes_to_image(image_bytes) -> np.ndarray:
 
 def convert_image_to_bytes(image, extension, params=None):
     ret, buf = cv2.imencode(extension, image, params)
+    if not ret:
+        raise RuntimeError("Failed to convert image to bytes")
+
     return buf.tobytes()
 
 
@@ -77,7 +80,6 @@ async def about(request: Request):
 
 @app.post("/upload-image")
 def upload_image(image: UploadFile = File(...), passphrase: str = Form(...)):
-    print(passphrase)
     if passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
@@ -85,9 +87,8 @@ def upload_image(image: UploadFile = File(...), passphrase: str = Form(...)):
     webp_image_bytes = convert_image_to_bytes(
         image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 90]
     )
-    # Generate a new filename
-    filename = f"{IMAGE_PREFIX}/{uuid4()}.webp"
 
+    filename = f"{IMAGE_PREFIX}/{uuid4()}.webp"
     blob = storage.Blob(filename, client.bucket(IMAGE_BUCKET))
 
     # Upload the image to GCS

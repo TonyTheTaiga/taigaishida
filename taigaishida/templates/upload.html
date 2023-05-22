@@ -3,84 +3,111 @@
 {% block content %}
 <div class="flex items-center justify-center h-screen">
   <div class="w-full max-w-xs">
-    <form id="upload-form" action="/upload-image" method="post" enctype="multipart/form-data" class="bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4 text-white">
-      <div class="mb-4">
-        <label class="block text-green-500 text-sm font-bold mb-2" for="image">
+    <form id="upload-form" action="/upload-image" method="post" enctype="multipart/form-data" class="bg-neutral-900 p-8">
+      <div class="mb-4 text-white">
+        <label class="block text-sm font-bold mb-2" for="image">
           Choose an image to upload
         </label>
-        <input id="file-input" class="shadow appearance-none border border-green-500 rounded w-full py-2 px-3 text-green-500 leading-tight focus:outline-none focus:shadow-outline" type="file" name="image">
+        <input id="file-input" class="bg-neutral-800 border border-neutral-700 w-full py-2 px-3 text-neutral-200" type="file" name="image">
       </div>
       <div class="mb-4">
-        <label class="block text-green-500 text-sm font-bold mb-2" for="passphrase">
+        <label class="block text-sm font-bold mb-2 text-white" for="passphrase">
           Passphrase
         </label>
-        <input id="passphrase-input" class="shadow appearance-none border border-green-500 rounded w-full py-2 px-3 text-green-500 leading-tight focus:outline-none focus:shadow-outline" type="password" name="passphrase">
+        <input id="passphrase-input" class="bg-black border border-neutral-700 w-full py-2 px-3" type="password" name="passphrase">
       </div>
-      <div class="flex items-center justify-between">
-        <button id="upload-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline relative overflow-hidden" type="submit">
+      <div>
+        <button id="upload-button" class="bg-neutral-700 hover:bg-neutral-600 text-white font-bold py-2 px-4 w-full relative overflow-hidden" type="submit">
           <span id="button-text">Upload</span>
           <div id="button-spinner" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full absolute top-1/2 left-1/2 transform-gpu -translate-x-1/2 -translate-y-1/2" style="animation: spin 1s linear infinite; display: none;"></div>
         </button>
       </div>
     </form>
-    <div id="message" class="text-green-500 mt-4"></div>
+    <div id="message" class="text-white mt-4"></div>
   </div>
 </div>
 
 <script>
-  document.getElementById('upload-form').addEventListener('submit', function(event) {
+  document.getElementById('upload-form').addEventListener('submit', async function(event) {
     event.preventDefault();
-    
+  
     const fileInput = document.getElementById('file-input');
     const passphraseInput = document.getElementById('passphrase-input');
     const uploadButton = document.getElementById('upload-button');
     const buttonText = document.getElementById('button-text');
     const buttonSpinner = document.getElementById('button-spinner');
-    
-    // Disable the button and show the spinner
-    uploadButton.disabled = true;
-    buttonSpinner.style.display = 'block';
-    buttonText.textContent = 'Uploading...';
-    
-    const formData = new FormData();
-    formData.append('image', fileInput.files[0]);
-    formData.append('passphrase', passphraseInput.value);
-    
-    fetch('/upload-image', {
-      method: 'POST',
-      body: formData,
-    })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => {
-          throw new Error(err.detail);
-        });
-      }
-      return response.json();
-    })
-    .then(data => {
-      document.getElementById('message').textContent = 'Image uploaded successfully: ' + data.filename;
-      console.log(data);
-      
-      // Show checkmark
-      buttonSpinner.style.display = 'none';
-      buttonText.textContent = '✅';
-    })
-    .catch(error => {
-      document.getElementById('message').textContent = error.message;
-      console.error(error);
-      
-      // Show X mark
-      buttonSpinner.style.display = 'none';
-      buttonText.textContent = '❌';
-    })
-    .finally(() => {
-      // Enable the button again after a delay to allow user to see result
-      setTimeout(() => {
-        uploadButton.disabled = false;
-        buttonText.textContent = 'Upload';
-      }, 2000);
-    });
+  
+    // Read the file as a Data URL
+    const reader = new FileReader();
+    reader.readAsDataURL(fileInput.files[0]);
+    reader.onload = async function(e) {
+      // Create an Image object
+      const img = new Image();
+      img.src = e.target.result;
+      await img.decode();
+  
+      // Draw the image to a canvas and convert to JPEG with reduced quality
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+  
+      // If the original image is PNG, keep the format, else compress it to JPEG
+      const compressedImageUrl = fileInput.files[0].type === 'image/png' ? 
+                                  canvas.toDataURL('image/png', 0.5) : 
+                                  canvas.toDataURL('image/jpeg', 0.5);
+  
+      // Convert the Data URL to a Blob
+      const response = await fetch(compressedImageUrl);
+      const blob = await response.blob();
+  
+      // Disable the button and show the spinner
+      uploadButton.disabled = true;
+      buttonSpinner.style.display = 'block';
+      buttonText.textContent = 'Uploading...';
+  
+      // Upload the compressed image
+      const formData = new FormData();
+      formData.append('image', blob, 'image.jpeg');
+      formData.append('passphrase', passphraseInput.value);
+  
+      fetch('/upload-image', {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => {
+            throw new Error(err.detail);
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        document.getElementById('message').textContent = 'Image uploaded successfully: ' + data.filename;
+        console.log(data);
+  
+        // Show checkmark
+        buttonSpinner.style.display = 'none';
+        buttonText.textContent = '✅';
+      })
+      .catch(error => {
+        document.getElementById('message').textContent = error.message;
+        console.error(error);
+  
+        // Show X mark
+        buttonSpinner.style.display = 'none';
+        buttonText.textContent = '❌';
+      })
+      .finally(() => {
+        // Enable the button again after a delay to allow user to see result
+        setTimeout(() => {
+          uploadButton.disabled = false;
+          buttonText.textContent = 'Upload';
+        }, 2000);
+      });
+    };
   });
 </script>
 {% endblock %}
