@@ -1,9 +1,8 @@
 import datetime
-from typing import List, Optional, Annotated
+from typing import List, Optional
 from pathlib import Path
 import os
 import logging
-import io
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File, Form
@@ -11,6 +10,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+import google.auth
+from google.auth.transport import requests
+from google.auth import compute_engine
+from datetime import datetime, timedelta
 from google.cloud import storage
 import numpy as np
 import cv2
@@ -116,16 +119,22 @@ class Item(BaseModel):
 
 @app.post("/get-upload-url")
 def get_upload_url(item: Item):
-    print(f"content type === {item.content_type}")
-
     if item.passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
+
+    auth_request = requests.Request()
+    credentials, _ = google.auth.default()
+    # This next line is the trick!
+    signing_credentials = compute_engine.IDTokenCredentials(
+        auth_request, "", service_account_email=credentials.service_account_email
+    )
 
     # Generate a signed URL for uploading a file
     blob = client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, item.filename))
     url = blob.generate_signed_url(
         version="v4",
-        expiration=datetime.timedelta(minutes=15),
+        expiration=timedelta(minutes=15),
+        credentials=signing_credentials,
         method="PUT",
         content_type=item.content_type,
     )
