@@ -67,9 +67,11 @@ def get_gallery_items() -> List[GalleryItem]:
         if blob.name.endswith(".webp")
         or blob.name.endswith(".jpg")
         or blob.name.endswith(".png")
+        or blob.name.endswith(".jpeg")
         or blob.name.endswith(".WEBP")
         or blob.name.endswith(".JPG")
         or blob.name.endswith(".PNG")
+        or blob.name.endswith(".JPEG")
     ]
 
 
