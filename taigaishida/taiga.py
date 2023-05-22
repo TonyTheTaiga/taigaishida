@@ -1,11 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from pathlib import Path
 import os
 import logging
 import io
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -76,7 +76,8 @@ async def about(request: Request):
 
 
 @app.post("/upload-image")
-def upload_image(image: UploadFile = File(...), passphrase: str = ""):
+def upload_image(image: UploadFile = File(...), passphrase: str = Form(...)):
+    print(passphrase)
     if passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
