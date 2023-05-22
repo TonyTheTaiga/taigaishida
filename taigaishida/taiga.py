@@ -4,12 +4,17 @@ import os
 import json
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, BaseSettings, Field
+from pydantic import BaseModel
+from google.cloud import storage
 
+
+IMAGE_BUCKET = "taiga-ishida-public"
+IMAGE_PREFIX = "webp_images"
+GCS_API_ROOT = "https://storage.googleapis.com"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui")
@@ -22,16 +27,7 @@ app.mount(
     name="static",
 )
 templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
-
-
-class EnvConfig(BaseSettings):
-    storage_url: str = Field(
-        "https://storage.googleapis.com/taiga-ishida-public/website-images/",
-        env="STORAGE_URL",
-    )
-
-
-env = EnvConfig()
+client = storage.Client.create_anonymous_client()
 
 
 class GalleryItem(BaseModel):
@@ -40,23 +36,24 @@ class GalleryItem(BaseModel):
 
     @property
     def url(self) -> str:
-        return os.path.join(env.storage_url, self.id)
+        return os.path.join(GCS_API_ROOT, IMAGE_BUCKET, self.id)
 
 
-class MetaData(BaseModel):
-    gallery: List[GalleryItem]
-
-
-with open(Path(__file__).parent.resolve() / "static" / "metadata.json", "r") as fp:
-    metadata = MetaData(**json.loads(fp.read()))
+def get_gallery_items():
+    blobs = client.list_blobs(IMAGE_BUCKET, prefix=IMAGE_PREFIX)
+    return [
+        GalleryItem(id=blob.name, name=blob.name.split("/")[-1])
+        for blob in blobs
+        if blob.name.endswith(".webp")
+    ]
 
 
 @app.get("/gallery", response_class=HTMLResponse)
 @app.get("/", response_class=HTMLResponse)
-async def gallery(request: Request):
+async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
     return templates.TemplateResponse(
         "gallery.html",
-        {"request": request, "gallery": [item.url for item in metadata.gallery]},
+        {"request": request, "gallery": [item.url for item in gallery_items]},
     )
 
 
