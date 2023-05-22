@@ -11,7 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from google.cloud import storage
-from PIL import Image
+import numpy as np
+import cv2
 
 IMAGE_BUCKET = "taiga-ishida-public"
 IMAGE_PREFIX = "webp_images"
@@ -30,6 +31,15 @@ app.mount(
 templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
 client = storage.Client()
+
+
+def convert_bytes_to_image(image_bytes) -> np.ndarray:
+    return cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+
+def convert_image_to_bytes(image, extension, params=None):
+    ret, buf = cv2.imencode(extension, image, params)
+    return buf.tobytes()
 
 
 class GalleryItem(BaseModel):
@@ -65,22 +75,18 @@ async def about(request: Request):
 
 
 @app.post("/upload-image")
-async def upload_image(image: UploadFile = File(...)):
-    # Create a PIL Image object
-    image_pil = Image.open(image.file)
-
-    # Convert image to WebP format in memory
-    byte_arr = io.BytesIO()
-    image_pil.save(byte_arr, format="WEBP")
-    byte_arr.seek(0)  # Move the cursor back to the beginning of the file
-
+def upload_image(image: UploadFile = File(...)):
+    image = convert_bytes_to_image(image.file.read())
+    webp_image_bytes = convert_image_to_bytes(
+        image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 100]
+    )
     # Generate a new filename
     filename = f"{IMAGE_PREFIX}/{uuid4()}.webp"
 
     blob = storage.Blob(filename, client.bucket(IMAGE_BUCKET))
 
     # Upload the image to GCS
-    blob.upload_from_file(byte_arr, content_type="image/webp")
+    blob.upload_from_string(webp_image_bytes, content_type="image/webp")
 
     return {"message": "Image uploaded successfully", "filename": filename}
 

@@ -3,4 +3,4 @@ fastapi==0.85.1
 uvicorn[standard]==0.18.3
 google-cloud-storage==2.9.0
 python-multipart==0.0.6
-Pillow==9.5.0
+opencv-python-headless==4.7.0.72
