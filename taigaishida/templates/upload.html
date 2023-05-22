@@ -28,86 +28,95 @@
 </div>
 
 <script>
-  document.getElementById('upload-form').addEventListener('submit', async function(event) {
-    event.preventDefault();
-  
-    const fileInput = document.getElementById('file-input');
-    const passphraseInput = document.getElementById('passphrase-input');
-    const uploadButton = document.getElementById('upload-button');
-    const buttonText = document.getElementById('button-text');
-    const buttonSpinner = document.getElementById('button-spinner');
-  
-    // Read the file as a Data URL
-    const reader = new FileReader();
-    reader.readAsDataURL(fileInput.files[0]);
-    reader.onload = async function(e) {
-      // Create an Image object
-      const img = new Image();
-      img.src = e.target.result;
-      await img.decode();
-  
-      // Draw the image to a canvas and convert to JPEG with reduced quality
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-  
-      // If the original image is PNG, keep the format, else compress it to JPEG
-      const compressedImageUrl = fileInput.files[0].type === 'image/png' ? 
-                                  canvas.toDataURL('image/png', 0.5) : 
-                                  canvas.toDataURL('image/jpeg', 0.5);
-  
-      // Convert the Data URL to a Blob
-      const response = await fetch(compressedImageUrl);
-      const blob = await response.blob();
-  
-      // Disable the button and show the spinner
-      uploadButton.disabled = true;
-      buttonSpinner.style.display = 'block';
-      buttonText.textContent = 'Uploading...';
-  
-      // Upload the compressed image
-      const formData = new FormData();
-      formData.append('image', blob, 'image.jpeg');
-      formData.append('passphrase', passphraseInput.value);
-  
-      fetch('/upload-image', {
-        method: 'POST',
-        body: formData,
-      })
-      .then(response => {
-        if (!response.ok) {
-          return response.json().then(err => {
-            throw new Error(err.detail);
-          });
+function resizeImage(file, MAX_WIDTH) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
         }
-        return response.json();
-      })
-      .then(data => {
-        document.getElementById('message').textContent = 'Image uploaded successfully: ' + data.filename;
-        console.log(data);
-  
-        // Show checkmark
-        buttonSpinner.style.display = 'none';
-        buttonText.textContent = '✅';
-      })
-      .catch(error => {
-        document.getElementById('message').textContent = error.message;
-        console.error(error);
-  
-        // Show X mark
-        buttonSpinner.style.display = 'none';
-        buttonText.textContent = '❌';
-      })
-      .finally(() => {
-        // Enable the button again after a delay to allow user to see result
-        setTimeout(() => {
-          uploadButton.disabled = false;
-          buttonText.textContent = 'Upload';
-        }, 2000);
-      });
+      } else {
+        if (height > MAX_WIDTH) {
+          width *= MAX_WIDTH / height;
+          height = MAX_WIDTH;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(resolve, file.type);
     };
+    img.onerror = reject;
   });
+}
+
+document.getElementById('upload-form').addEventListener('submit', async function(event) {
+  MAX_WIDTH = 2000;
+
+  event.preventDefault();
+  
+  const fileInput = document.getElementById('file-input');
+  const passphraseInput = document.getElementById('passphrase-input');
+  const uploadButton = document.getElementById('upload-button');
+  const buttonText = document.getElementById('button-text');
+  const buttonSpinner = document.getElementById('button-spinner');
+
+  // Resize the image
+  const file = fileInput.files[0];
+  const resizedFile = await resizeImage(file, MAX_WIDTH);
+
+  // Disable the button and show the spinner
+  uploadButton.disabled = true;
+  buttonSpinner.style.display = 'block';
+  buttonText.textContent = 'Uploading...';
+
+  // Upload the resized image
+  const formData = new FormData();
+  formData.append('image', resizedFile, 'image.jpg');
+  formData.append('passphrase', passphraseInput.value);
+
+  fetch('/upload-image', {
+    method: 'POST',
+    body: formData,
+  })
+  .then(response => {
+    if (!response.ok) {
+      return response.json().then(err => {
+        throw new Error(err.detail);
+      });
+    }
+    return response.json();
+  })
+  .then(data => {
+    document.getElementById('message').textContent = 'Image uploaded successfully: ' + data.filename;
+
+    // Show checkmark
+    buttonSpinner.style.display = 'none';
+    buttonText.textContent = '✅';
+  })
+  .catch(error => {
+    document.getElementById('message').textContent = error.message;
+
+    // Show X mark
+    buttonSpinner.style.display = 'none';
+    buttonText.textContent = '❌';
+  })
+  .finally(() => {
+    // Enable the button again after a delay to allow user to see result
+    setTimeout(() => {
+      uploadButton.disabled = false;
+      buttonText.textContent = 'Upload';
+    }, 2000);
+  });
+});
 </script>
 {% endblock %}
