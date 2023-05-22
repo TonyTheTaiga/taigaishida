@@ -5,7 +5,7 @@ import logging
 import io
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -17,6 +17,7 @@ import cv2
 IMAGE_BUCKET = "taiga-ishida-public"
 IMAGE_PREFIX = "webp_images"
 GCS_API_ROOT = "https://storage.googleapis.com"
+CORRECT_PASSPHRASE = "greengrass123"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui")
@@ -75,7 +76,10 @@ async def about(request: Request):
 
 
 @app.post("/upload-image")
-def upload_image(image: UploadFile = File(...)):
+def upload_image(image: UploadFile = File(...), passphrase: str = ""):
+    if passphrase != CORRECT_PASSPHRASE:
+        raise HTTPException(status_code=403, detail="Incorrect passphrase")
+
     image = convert_bytes_to_image(image.file.read())
     webp_image_bytes = convert_image_to_bytes(
         image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 90]
