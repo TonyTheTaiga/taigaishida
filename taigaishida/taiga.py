@@ -16,13 +16,18 @@ logger = logging.getLogger("ui")
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory=Path(__file__).parent.resolve() / "static"), name="static")
+app.mount(
+    "/static",
+    StaticFiles(directory=Path(__file__).parent.resolve() / "static"),
+    name="static",
+)
 templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
 
 class EnvConfig(BaseSettings):
-    planetarium_url: str = Field(
-        "https://planetarium-dot-taigaishida-217622.wl.r.appspot.com/static/images/", env="PLANETARIUM_URL"
+    storage_url: str = Field(
+        "https://storage.googleapis.com/taiga-ishida-public/website-images/",
+        env="STORAGE_URL",
     )
 
 
@@ -35,7 +40,7 @@ class GalleryItem(BaseModel):
 
     @property
     def url(self) -> str:
-        return os.path.join(env.planetarium_url, self.id)
+        return os.path.join(env.storage_url, self.id)
 
 
 class MetaData(BaseModel):
@@ -50,7 +55,8 @@ with open(Path(__file__).parent.resolve() / "static" / "metadata.json", "r") as 
 @app.get("/", response_class=HTMLResponse)
 async def gallery(request: Request):
     return templates.TemplateResponse(
-        "gallery.html", {"request": request, "gallery": [item.url for item in metadata.gallery]}
+        "gallery.html",
+        {"request": request, "gallery": [item.url for item in metadata.gallery]},
     )
 
 
