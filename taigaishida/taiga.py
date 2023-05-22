@@ -123,7 +123,6 @@ def get_upload_url(item: Item):
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
     auth_request = requests.Request()
-    # This next line is the trick!
     signing_credentials = compute_engine.IDTokenCredentials(
         auth_request,
         "",
