@@ -123,10 +123,11 @@ def get_upload_url(item: Item):
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
     auth_request = requests.Request()
-    credentials, _ = google.auth.default()
     # This next line is the trick!
     signing_credentials = compute_engine.IDTokenCredentials(
-        auth_request, "", service_account_email=credentials.service_account_email
+        auth_request,
+        "",
+        service_account_email="storager@taigaishida-217622.iam.gserviceaccount.com",
     )
 
     # Generate a signed URL for uploading a file
