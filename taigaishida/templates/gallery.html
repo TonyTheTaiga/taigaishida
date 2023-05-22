@@ -9,6 +9,8 @@
 </section>
 
 <script type="text/javascript">
+  IMAGE_INTERVAL = 3000;
+
   const images = {{ gallery|safe }};
   
   function fisherYatesShuffle(array) {
@@ -42,7 +44,7 @@
       currentImage.classList.remove("opacity-0");
     }, 10);
     currentImageIndex = nextImageIndex;
-  }, 3000);
+  }, IMAGE_INTERVAL);
 </script>
 
 {% endblock %}
