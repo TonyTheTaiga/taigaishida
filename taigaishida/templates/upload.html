@@ -79,7 +79,6 @@
     .getElementById("upload-form")
     .addEventListener("submit", async function (event) {
       MAX_WIDTH = 2000;
-
       event.preventDefault();
 
       const fileInput = document.getElementById("file-input");
@@ -88,60 +87,72 @@
       const buttonText = document.getElementById("button-text");
       const buttonSpinner = document.getElementById("button-spinner");
 
-      // Resize the image
-      const file = fileInput.files[0];
-      const resizedFile = await resizeImage(file, MAX_WIDTH);
-
-      // Disable the button and show the spinner
       uploadButton.disabled = true;
       buttonSpinner.style.display = "block";
       buttonText.textContent = "Uploading...";
 
-      const extension = file.name.split(".").pop();
-      const uniqueName =
-        new Date().getTime() +
-        "-" +
-        Math.round(Math.random() * 1e9) +
-        "." +
-        extension;
+      try {
+        // Resize the image
+        const file = fileInput.files[0];
+        const resizedFile = await resizeImage(file, MAX_WIDTH);
 
-      // Get the upload URL from the server
-      const response = await fetch("/get-upload-url", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          filename: uniqueName,
-          passphrase: passphraseInput.value,
-          content_type: resizedFile.type,
-        }),
-      });
-      const data = await response.json();
-      const uploadUrl = data.uploadUrl;
+        const extension = file.name.split(".").pop();
+        const uniqueName =
+          new Date().getTime() +
+          "-" +
+          Math.round(Math.random() * 1e9) +
+          "." +
+          extension;
 
-      // Upload the resized image
-      await fetch(uploadUrl, {
-        method: "PUT",
-        body: resizedFile,
-        headers: {
-          "Content-Type": resizedFile.type,
-        },
-      });
+        // Get the upload URL from the server
+        const response = await fetch("/get-upload-url", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: uniqueName,
+            passphrase: passphraseInput.value,
+            content_type: resizedFile.type,
+          }),
+        });
+        if (!response.ok) throw new Error("Failed to get the upload URL");
 
-      // Display success message
-      document.getElementById("message").textContent =
-        "Image uploaded successfully";
+        const data = await response.json();
+        const uploadUrl = data.uploadUrl;
 
-      // Show checkmark
-      buttonSpinner.style.display = "none";
-      buttonText.textContent = "✅";
+        // Upload the resized image
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "PUT",
+          body: resizedFile,
+          headers: {
+            "Content-Type": resizedFile.type,
+          },
+        });
+        if (!uploadResponse.ok) throw new Error("Failed to upload the file");
 
-      // Enable the button again after a delay to allow user to see result
-      setTimeout(() => {
-        uploadButton.disabled = false;
-        buttonText.textContent = "Upload";
-      }, 2000);
+        // Display success message
+        document.getElementById("message").textContent =
+          "Image uploaded successfully";
+
+        // Show checkmark
+        buttonText.textContent = "✅";
+      } catch (error) {
+        // Display error message
+        document.getElementById("message").textContent =
+          "Error: " + error.message;
+
+        // Show error sign
+        buttonText.textContent = "❌";
+      } finally {
+        buttonSpinner.style.display = "none";
+
+        // Enable the button again after a delay to allow user to see result
+        setTimeout(() => {
+          uploadButton.disabled = false;
+          buttonText.textContent = "Upload";
+        }, 2000);
+      }
     });
 </script>
 {% endblock %}
