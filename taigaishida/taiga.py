@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Optional, Annotated
 from pathlib import Path
 import os
@@ -60,7 +61,7 @@ def get_gallery_items() -> List[GalleryItem]:
     return [
         GalleryItem(id=blob.name, name=blob.name.split("/")[-1])
         for blob in blobs
-        if blob.name.endswith(".webp")
+        if blob.name.endswith(".webp") or blob.name.endswith(".jpg")
     ]
 
 
@@ -100,3 +101,28 @@ def upload_image(image: UploadFile = File(...), passphrase: str = Form(...)):
 @app.get("/upload", response_class=HTMLResponse)
 async def upload(request: Request):
     return templates.TemplateResponse("upload.html", {"request": request})
+
+
+class Item(BaseModel):
+    filename: str
+    passphrase: str
+    content_type: str
+
+
+@app.post("/get-upload-url")
+def get_upload_url(item: Item):
+    print(f"content type === {item.content_type}")
+
+    if item.passphrase != CORRECT_PASSPHRASE:
+        raise HTTPException(status_code=403, detail="Incorrect passphrase")
+
+    # Generate a signed URL for uploading a file
+    blob = client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, item.filename))
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(minutes=15),
+        method="PUT",
+        content_type=item.content_type,
+    )
+
+    return {"uploadUrl": url}

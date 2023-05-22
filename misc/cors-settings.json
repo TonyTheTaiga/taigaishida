@@ -1,0 +1,8 @@
+[
+    {
+      "origin": ["https://taigaishida.com", "http://localhost:8000"],
+      "method": ["GET", "PUT"],
+      "responseHeader": ["Content-Type"],
+      "maxAgeSeconds": 3600
+    }
+]
