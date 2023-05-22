@@ -1,4 +1,3 @@
-import datetime
 from typing import List, Optional
 from pathlib import Path
 import os
@@ -10,10 +9,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-import google.auth
 from google.auth.transport import requests
 from google.auth import compute_engine
-from datetime import datetime, timedelta
+from datetime import timedelta
 from google.cloud import storage
 import numpy as np
 import cv2
@@ -123,6 +121,8 @@ class Item(BaseModel):
 def get_upload_url(item: Item):
     if item.passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
+
+    logger.info(f"SA {client._credentials.service_account_email}")
 
     auth_request = requests.Request()
     signing_credentials = compute_engine.IDTokenCredentials(
