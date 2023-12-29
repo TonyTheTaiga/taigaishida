@@ -87,25 +87,6 @@ async def about(request: Request):
     return templates.TemplateResponse("about.html", {"request": request})
 
 
-@app.post("/upload-image")
-def upload_image(image: UploadFile = File(...), passphrase: str = Form(...)):
-    if passphrase != CORRECT_PASSPHRASE:
-        raise HTTPException(status_code=403, detail="Incorrect passphrase")
-
-    image = convert_bytes_to_image(image.file.read())
-    webp_image_bytes = convert_image_to_bytes(
-        image, ".webp", params=[cv2.IMWRITE_WEBP_QUALITY, 75]
-    )
-
-    filename = f"{IMAGE_PREFIX}/{uuid4()}.webp"
-    blob = storage.Blob(filename, client.bucket(IMAGE_BUCKET))
-
-    # Upload the image to GCS
-    blob.upload_from_string(webp_image_bytes, content_type="image/webp")
-
-    return {"message": "Image uploaded successfully", "filename": filename}
-
-
 @app.get("/upload", response_class=HTMLResponse)
 async def upload(request: Request):
     return templates.TemplateResponse("upload.html", {"request": request})
