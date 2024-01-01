@@ -16,15 +16,15 @@
   <link rel="stylesheet" href="{{url_for('static', path='/styles/2023.css')}}" />
 </head>
 
-<body id="body" class="font-main bg-neutral-900 mx-5">
-  <header id="header" class="h-screen-5 pt-5 text-white">
+<body id="body" class="flex flex-col h-screen font-main bg-neutral-900">
+  <header id="header" class="p-5 text-white">
     <nav id="navigation" class="text-2xl">
       <a href="{{ url_for('gallery') }}">01</a>
       <a href="{{ url_for('about') }}">00</a>
     </nav>
   </header>
   <!-- header -->
-  <main id="main">{% block content %}{% endblock %}</main>
+  <main id="main" class='flex-grow overflow-auto'>{% block content %}{% endblock %}</main>
   <!-- main -->
   {% block script %} {% endblock %} {% block javascript %} {% endblock %}
 </body>
