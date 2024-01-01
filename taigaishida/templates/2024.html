@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% block content %}
-<div id="popup" class="hidden absolute"></div>
+<div id="popup" class="hidden absolute p-2 bg-opacity-85"></div>
 <div id="gallery" class="text-white flex justify-center my-8">
     <table id="galleryTable" class="gallery-table overflow-x-auto border border-gray-300 w-full">
         <tr>
@@ -48,20 +48,24 @@
         table.addEventListener('mouseover', (event) => {
             console.log(event.target.tagName);
             if (event.target.tagName === 'TD') {
-                const row = event.target.closest('tr');
-                const mediaContent = row.getAttribute('data-src');
-
                 if (popup.childNodes.length >= 1) {
                     popup.removeChild(currentImage);
                     currentImage = null;
+                    popup.style.left = 0 + 'px';
+                    popup.style.top = 0 + 'px';
                 }
 
-                currentImage = new Image(width = 150);
+                const row = event.target.closest('tr');
+                const mediaContent = row.getAttribute('data-src');
+                currentImage = new Image(width = 200);
+                currentImage.onload = (event) => {
+                    popup.appendChild(currentImage);
+                    popup.style.left = event.pageX + xOffset + 'px';
+                    popup.style.top = event.pageY + yOffset + 'px';
+                    popup.classList.add('bg-white');
+                    popup.classList.remove('hidden');
+                };
                 currentImage.src = mediaContent;
-                popup.appendChild(currentImage);
-                popup.classList.remove('hidden');
-                popup.style.left = event.pageX + xOffset + 'px';
-                popup.style.top = event.pageY + yOffset + 'px';
             }
         });
 
@@ -76,6 +80,7 @@
 
         table.addEventListener('mouseout', (event) => {
             popup.classList.add('hidden');
+            popup.classList.remove('bg-white');
             if (popup.childNodes.length >= 1) {
                 popup.removeChild(currentImage);
                 currentImage = null;
