@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+{% block content %}
+<div id="popup" class="hidden absolute"></div>
+<div id="gallery" class="text-white flex justify-center my-8">
+    <table id="galleryTable" class="gallery-table overflow-x-auto border border-gray-300 w-full">
+        <tr>
+            <th>
+                image
+            </th>
+            <th>
+                camera
+            </th>
+            <th>
+                location
+            </th>
+            <th>
+                date
+            </th>
+        </tr>
+        {% for image in images %}
+        <tr data-src="{{ image['uri'] }}" class="hover:bg-slate-400">
+            <td>
+                {{ image['name'] }}
+            </td>
+            <td>
+                {{ image['Model'] }}
+            </td>
+            <td>
+                {{ image['latlong'] or 'Earth' }}
+            </td>
+            <td>
+                {{ image['created'] }}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}
+{% block script %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const popup = document.getElementById('popup')
+        const table = document.getElementById('galleryTable')
+        let currentImage = null;
+        const xOffset = 40;
+        const yOffset = 40;
+
+        table.addEventListener('mouseover', (event) => {
+            console.log(event.target.tagName);
+            if (event.target.tagName === 'TD') {
+                const row = event.target.closest('tr');
+                const mediaContent = row.getAttribute('data-src');
+
+                if (popup.childNodes.length >= 1) {
+                    popup.removeChild(currentImage);
+                    currentImage = null;
+                }
+
+                currentImage = new Image(width = 150);
+                currentImage.src = mediaContent;
+                popup.appendChild(currentImage);
+                popup.classList.remove('hidden');
+                popup.style.left = event.pageX + xOffset + 'px';
+                popup.style.top = event.pageY + yOffset + 'px';
+            }
+        });
+
+        table.addEventListener('mousemove', (event) => {
+            if (event.target.tagName == 'TD') {
+                if (currentImage) {
+                    popup.style.left = event.pageX + xOffset + 'px';
+                    popup.style.top = event.pageY + yOffset + 'px';
+                }
+            }
+        });
+
+        table.addEventListener('mouseout', (event) => {
+            popup.classList.add('hidden');
+            if (popup.childNodes.length >= 1) {
+                popup.removeChild(currentImage);
+                currentImage = null;
+                popup.style.left = 0 + 'px';
+                popup.style.top = 0 + 'px';
+            }
+        });
+
+    });
+</script>
+{% endblock %}

@@ -11,9 +11,7 @@ from pydantic import BaseModel
 from google.auth.transport import requests
 from google.auth import compute_engine
 from datetime import timedelta
-from google.cloud import storage
-import numpy as np
-import cv2
+from google.cloud import storage, datastore
 
 IMAGE_BUCKET = "taiga-ishida-public"
 IMAGE_PREFIX = "webp_images"
@@ -22,8 +20,8 @@ CORRECT_PASSPHRASE = "greengrass123"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui")
-
 app = FastAPI()
+ds_client = datastore.Client()
 
 app.mount(
     "/static",
@@ -33,18 +31,6 @@ app.mount(
 templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
 client = storage.Client()
-
-
-def convert_bytes_to_image(image_bytes) -> np.ndarray:
-    return cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
-
-
-def convert_image_to_bytes(image, extension, params=None):
-    ret, buf = cv2.imencode(extension, image, params)
-    if not ret:
-        raise RuntimeError("Failed to convert image to bytes")
-
-    return buf.tobytes()
 
 
 class GalleryItem(BaseModel):
@@ -73,12 +59,21 @@ def get_gallery_items() -> List[GalleryItem]:
 
 
 @app.get("/gallery", response_class=HTMLResponse)
-@app.get("/", response_class=HTMLResponse)
 async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
     return templates.TemplateResponse(
         "gallery.html",
         {"request": request, "gallery": [item.url for item in gallery_items]},
     )
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/2024", response_class=HTMLResponse)
+def ttf(request: Request):
+    query = ds_client.query(kind="Image")
+    images = list(query.fetch())
+    print(images[0])
+
+    return templates.TemplateResponse("2024.html", {"request": request, "images": images})
 
 
 @app.get("/about", response_class=HTMLResponse)
@@ -91,15 +86,15 @@ async def upload(request: Request):
     return templates.TemplateResponse("upload.html", {"request": request})
 
 
-class Item(BaseModel):
+class Asset(BaseModel):
     filename: str
     passphrase: str
     content_type: str
 
 
 @app.post("/get-upload-url")
-def get_upload_url(item: Item):
-    if item.passphrase != CORRECT_PASSPHRASE:
+def get_upload_url(asset: Asset):
+    if asset.passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
     logger.info(f"SA {client._credentials.service_account_email}")
@@ -112,13 +107,23 @@ def get_upload_url(item: Item):
     )
 
     # Generate a signed URL for uploading a file
-    blob = client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, item.filename))
+    blob = client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, asset.filename))
     url = blob.generate_signed_url(
         version="v4",
         expiration=timedelta(minutes=15),
         credentials=signing_credentials,
         method="PUT",
-        content_type=item.content_type,
+        content_type=asset.content_type,
     )
 
     return {"uploadUrl": url}
+
+
+class AssetRegisterRequest(BaseModel):
+    # Must be a public HTTP url
+    src: str
+
+
+@app.post("/register-asset")
+def new_asset(request: AssetRegisterRequest):
+    print(request)
