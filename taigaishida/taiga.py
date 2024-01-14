@@ -33,47 +33,14 @@ templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templat
 client = storage.Client()
 
 
-class GalleryItem(BaseModel):
-    id: str
-    name: Optional[str] = "???"
-
-    @property
-    def url(self) -> str:
-        return os.path.join(GCS_API_ROOT, IMAGE_BUCKET, self.id)
-
-
-def get_gallery_items() -> List[GalleryItem]:
-    blobs = client.list_blobs(IMAGE_BUCKET, prefix=IMAGE_PREFIX)
-    return [
-        GalleryItem(id=blob.name, name=blob.name.split("/")[-1])
-        for blob in blobs
-        if blob.name.endswith(".webp")
-        or blob.name.endswith(".jpg")
-        or blob.name.endswith(".png")
-        or blob.name.endswith(".jpeg")
-        or blob.name.endswith(".WEBP")
-        or blob.name.endswith(".JPG")
-        or blob.name.endswith(".PNG")
-        or blob.name.endswith(".JPEG")
-    ]
-
-
-@app.get("/gallery", response_class=HTMLResponse)
-async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
-    return templates.TemplateResponse(
-        "gallery.html",
-        {"request": request, "gallery": [item.url for item in gallery_items]},
-    )
-
-
 @app.get("/", response_class=HTMLResponse)
-@app.get("/2024", response_class=HTMLResponse)
-def ttf(request: Request):
+@app.get("/index", response_class=HTMLResponse)
+def index(request: Request):
     query = ds_client.query(kind="Image")
     images = list(query.fetch())
-    print(images[0])
-
-    return templates.TemplateResponse("2024.html", {"request": request, "images": images})
+    return templates.TemplateResponse(
+        "2024.html", {"request": request, "images": images}
+    )
 
 
 @app.get("/about", response_class=HTMLResponse)
@@ -117,13 +84,3 @@ def get_upload_url(asset: Asset):
     )
 
     return {"uploadUrl": url}
-
-
-class AssetRegisterRequest(BaseModel):
-    # Must be a public HTTP url
-    src: str
-
-
-@app.post("/register-asset")
-def new_asset(request: AssetRegisterRequest):
-    print(request)
