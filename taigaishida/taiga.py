@@ -1,9 +1,8 @@
-from typing import List, Optional
 from pathlib import Path
 import os
 import logging
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -22,6 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui")
 app = FastAPI()
 ds_client = datastore.Client()
+gcs_client = storage.Client()
 
 app.mount(
     "/static",
@@ -30,7 +30,6 @@ app.mount(
 )
 templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
-client = storage.Client()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -64,7 +63,7 @@ def get_upload_url(asset: Asset):
     if asset.passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
-    logger.info(f"SA {client._credentials.service_account_email}")
+    logger.info(f"SA {gcs_client._credentials.service_account_email}")
 
     auth_request = requests.Request()
     signing_credentials = compute_engine.IDTokenCredentials(
@@ -74,7 +73,7 @@ def get_upload_url(asset: Asset):
     )
 
     # Generate a signed URL for uploading a file
-    blob = client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, asset.filename))
+    blob = gcs_client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, asset.filename))
     url = blob.generate_signed_url(
         version="v4",
         expiration=timedelta(minutes=15),
