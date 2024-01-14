@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="text-white h-full">
-  <img src="{{ gallery[0] }}" class="image-transition object-scale-down h-full mx-auto pb-10" id="imageDisplay" />
-</section>
-
-<script type="text/javascript">
+    <section class="text-white h-full">
+        <img src="{{ gallery[0] }}"
+             class="image-transition object-scale-down h-full mx-auto pb-10"
+             id="imageDisplay" />
+    </section>
+    <script type="text/javascript">
   const IMAGE_INTERVAL = 3000;
   const images = {{ gallery| safe }};
   let currentImageIndex = 0;
@@ -24,5 +25,5 @@
     const imageDisplay = document.getElementById("imageDisplay");
     imageDisplay.src = shuffledImages[currentImageIndex];
   }, IMAGE_INTERVAL);
-</script>
+    </script>
 {% endblock %}

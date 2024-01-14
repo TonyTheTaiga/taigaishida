@@ -1,49 +1,38 @@
-{% extends "layout.html" %} {% block content %}
-<div class="flex items-center justify-center h-screen">
-  <div class="w-full max-w-xs">
-    <form id="upload-form" class="bg-neutral-900 p-8">
-      <div class="mb-4 text-white">
-        <label class="block text-sm font-bold mb-2" for="image">
-          Choose an image to upload
-        </label>
-        <input
-          id="file-input"
-          class="bg-neutral-800 border border-neutral-700 w-full py-2 px-3 text-neutral-200"
-          type="file"
-          name="image"
-        />
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-bold mb-2 text-white" for="passphrase">
-          Passphrase
-        </label>
-        <input
-          id="passphrase-input"
-          class="bg-black border border-neutral-700 w-full py-2 px-3"
-          type="password"
-          name="passphrase"
-        />
-      </div>
-      <div>
-        <button
-          id="upload-button"
-          class="bg-neutral-700 hover:bg-neutral-600 text-white font-bold py-2 px-4 w-full relative overflow-hidden"
-          type="submit"
-        >
-          <span id="button-text">Upload</span>
-          <div
-            id="button-spinner"
-            class="h-5 w-5 border-2 border-white border-t-transparent rounded-full absolute top-1/2 left-1/2 transform-gpu -translate-x-1/2 -translate-y-1/2"
-            style="animation: spin 1s linear infinite; display: none"
-          ></div>
-        </button>
-      </div>
-    </form>
-    <div id="message" class="text-white mt-4"></div>
-  </div>
-</div>
-
-<script>
+{% extends "layout.html" %}
+{% block content %}
+    <div class="flex items-center justify-center h-screen">
+        <div class="w-full max-w-xs">
+            <form id="upload-form" class="bg-neutral-900 p-8">
+                <div class="mb-4 text-white">
+                    <label class="block text-sm font-bold mb-2" for="image">Choose an image to upload</label>
+                    <input id="file-input"
+                           class="bg-neutral-800 border border-neutral-700 w-full py-2 px-3 text-neutral-200"
+                           type="file"
+                           name="image" />
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2 text-white" for="passphrase">Passphrase</label>
+                    <input id="passphrase-input"
+                           class="bg-black border border-neutral-700 w-full py-2 px-3"
+                           type="password"
+                           name="passphrase" />
+                </div>
+                <div>
+                    <button id="upload-button"
+                            class="bg-neutral-700 hover:bg-neutral-600 text-white font-bold py-2 px-4 w-full relative overflow-hidden"
+                            type="submit">
+                        <span id="button-text">Upload</span>
+                        <div id="button-spinner"
+                             class="h-5 w-5 border-2 border-white border-t-transparent rounded-full absolute top-1/2 left-1/2 transform-gpu -translate-x-1/2 -translate-y-1/2"
+                             style="animation: spin 1s linear infinite;
+                                    display: none"></div>
+                    </button>
+                </div>
+            </form>
+            <div id="message" class="text-white mt-4"></div>
+        </div>
+    </div>
+    <script>
   function resizeImage(file, MAX_WIDTH) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -154,5 +143,5 @@
         }, 2000);
       }
     });
-</script>
+    </script>
 {% endblock %}

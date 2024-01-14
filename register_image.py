@@ -4,7 +4,6 @@ import os
 import argparse
 from pathlib import Path
 from datetime import datetime
-import ast
 
 import tqdm
 from google.cloud import datastore, storage
@@ -68,6 +67,7 @@ def read_exif(image) -> dict:
             "latlong"
         ] = f'{dms_to_decimal(tags["GPSLatitude"]):.5f} {tags["GPSLatitudeRef"]}, {dms_to_decimal(tags["GPSLongitude"]):.5f} {tags["GPSLongitudeRef"]}'
     except Exception as e:
+        print(e)
         pass
 
     # Convert lat long to a city, Earth if unknown
@@ -109,4 +109,4 @@ if __name__ == "__main__":
         entity = create_entity("Image", entity_data, ds_client)
         entities.append(entity)
 
-    ds_client.put_multi(entities)
+    # ds_client.put_multi(entities)
