@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
   <div id="popup" class="hidden absolute p-2 bg-opacity-85"></div>
-  <div class="h-full w-full flex flex-col">
+  <div class="h-full w-full flex flex-col space-y-5">
     <div id='display' class="text-white flex-1 h-1/2">
 			<img id='jumboImg' class='h-full mx-auto'></img>
 		</div>
@@ -34,6 +34,8 @@
 			const jumbo = document.getElementById('jumboImg');
 
 			let currentImage = null;
+			let highlighted = null;
+
 			const xOffset = 40;
 			const yOffset = 40;
 
