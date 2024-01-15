@@ -1,16 +1,18 @@
-from pathlib import Path
-import os
 import logging
+import os
+from collections import defaultdict
+from datetime import timedelta
+from pathlib import Path
+from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Cookie, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
-from google.auth.transport import requests
 from google.auth import compute_engine
-from datetime import timedelta
-from google.cloud import storage, datastore
+from google.auth.transport import requests
+from google.cloud import datastore, storage
+from pydantic import BaseModel
 
 IMAGE_BUCKET = "taiga-ishida-public"
 IMAGE_PREFIX = "webp_images"
@@ -19,9 +21,13 @@ CORRECT_PASSPHRASE = "greengrass123"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui")
-app = FastAPI()
+
 ds_client = datastore.Client()
 gcs_client = storage.Client()
+
+app = FastAPI()
+
+session_ids = defaultdict(list)
 
 app.mount(
     "/static",
@@ -31,22 +37,37 @@ app.mount(
 templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
 
-
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index", response_class=HTMLResponse)
-def index(request: Request):
-    return templates.TemplateResponse("2024.html", {"request": request})
+def index(request: Request, session_id=Cookie(None)):
+    response = templates.TemplateResponse("2024.html", {"request": request})
+    response.set_cookie(
+        key="session_id", value=uuid4().hex, httponly=True
+    )
+    return response
 
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
     return templates.TemplateResponse("about.html", {"request": request})
 
+
 @app.get("/table", response_class=HTMLResponse)
-async def table(request: Request):
+async def table(request: Request, session_id=Cookie(None)):
+    logger.info(f"session_id: {session_id}")
+
     query = ds_client.query(kind="Image")
-    images = list(query.fetch())
-    return templates.TemplateResponse('table.html', {'request': request, 'images': images})
+    start_cursor = session_ids[session_id][-1] if session_id in session_ids else None
+    query_iterator = query.fetch(
+        limit=10, start_cursor=start_cursor
+    )
+    images = list(next(query_iterator.pages))
+    session_ids[session_id].append(query_iterator.next_page_token)
+    response = templates.TemplateResponse(
+        "table.html", {"request": request, "images": images}
+    )
+    return response
+
 
 @app.get("/upload", response_class=HTMLResponse)
 async def upload(request: Request):
@@ -64,7 +85,7 @@ def get_upload_url(asset: Asset):
     if asset.passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
-    logger.info(f"SA {gcs_client._credentials.service_account_email}")
+    logger.info(f"SA {gcs_client._credentials.service_account_email}")  # type: ignore
 
     auth_request = requests.Request()
     signing_credentials = compute_engine.IDTokenCredentials(
@@ -74,7 +95,9 @@ def get_upload_url(asset: Asset):
     )
 
     # Generate a signed URL for uploading a file
-    blob = gcs_client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, asset.filename))
+    blob = gcs_client.bucket(IMAGE_BUCKET).blob(
+        os.path.join(IMAGE_PREFIX, asset.filename)
+    )
     url = blob.generate_signed_url(
         version="v4",
         expiration=timedelta(minutes=15),
