@@ -2,29 +2,14 @@
 {% block content %}
     <div id="popup" class="hidden absolute p-2 bg-opacity-85"></div>
     <div class="h-full w-full flex flex-col space-y-5">
-        <div id='display' class="text-white flex-1 h-1/2 image-transition object-scale-down">
+        <div id='display'
+             class="text-white flex-1 h-1/2 image-transition object-scale-down">
             <img id='jumboImg' class='h-full mx-auto'>
         </img>
     </div>
     <div id="gallery" class="text-white overflow-auto h-1/2">
         <table id="galleryTable"
-               class="gallery-table border border-gray-300 w-full text-sm">
-            <tr class="bg-neutral-800">
-                <th>image</th>
-                <th>camera</th>
-                <th>location</th>
-                <th>date</th>
-            </tr>
-            {% for image in images %}
-                <tr data-src="{{ image['uri'] }}"
-                    data-thumbnail="{{ "foo" }}"
-                    class="hover:bg-slate-400">
-                    <td>{{ image['name'].upper() }}</td>
-                    <td>{{ image['Model'] }}</td>
-                    <td>{{ image['latlong'] or 'Earth' }}</td>
-                    <td>{{ image['created'] }}</td>
-                </tr>
-            {% endfor %}
+               class="gallery-table border border-gray-300 w-full text-sm" hx-get='/table' hx-trigger='load'>
         </table>
     </div>
 {% endblock %}

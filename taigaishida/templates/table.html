@@ -1,0 +1,16 @@
+<tr class="bg-neutral-800">
+		<th>image</th>
+		<th>camera</th>
+		<th>location</th>
+		<th>date</th>
+</tr>
+{% for image in images %}
+		<tr data-src="{{ image['uri'] }}"
+				data-thumbnail="{{ "foo" }}"
+				class="hover:bg-slate-400">
+				<td>{{ image['name'].upper() }}</td>
+				<td>{{ image['Model'] }}</td>
+				<td>{{ image['latlong'] or 'Earth' }}</td>
+				<td>{{ image['created'] }}</td>
+		</tr>
+{% endfor %}

@@ -35,17 +35,18 @@ templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templat
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index", response_class=HTMLResponse)
 def index(request: Request):
-    query = ds_client.query(kind="Image")
-    images = list(query.fetch())
-    return templates.TemplateResponse(
-        "2024.html", {"request": request, "images": images}
-    )
+    return templates.TemplateResponse("2024.html", {"request": request})
 
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
     return templates.TemplateResponse("about.html", {"request": request})
 
+@app.get("/table", response_class=HTMLResponse)
+async def table(request: Request):
+    query = ds_client.query(kind="Image")
+    images = list(query.fetch())
+    return templates.TemplateResponse('table.html', {'request': request, 'images': images})
 
 @app.get("/upload", response_class=HTMLResponse)
 async def upload(request: Request):

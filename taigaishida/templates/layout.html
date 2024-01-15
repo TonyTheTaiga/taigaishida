@@ -7,13 +7,17 @@
             <title>Taiga Ishida</title>
         {% endif %}
         <meta name="author" content="Taiga Ishida" />
-        <meta name="description" content="portfolio" />
+        <meta name="description" content="Taiga's Website" />
         <meta name="keywords"
               content="Taiga, Ishida, Taiga Ishida, machine learning, ai, software, engineer, machine, learning" />
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="stylesheet"
               href="{{ url_for('static', path='/styles/2024.css') }}" />
+        <!-- Htmx -->
+        <script src="https://unpkg.com/htmx.org@1.9.8"
+                integrity="sha384-rgjA7mptc2ETQqXoYC3/zJvkU7K/aP44Y+z7xQuJiVnB/422P/Ak+F/AqFR7E4Wr"
+                crossorigin="anonymous"></script>
     </head>
     <body id="body" class="flex flex-col h-screen font-main bg-neutral-900 p-4">
         <header id="header" class="text-white">
@@ -27,6 +31,7 @@
             {% block content %}{% endblock %}
         </main>
         <!-- main -->
+				<script src="{{ url_for('static', path='htmx.min.js') }}"></script>
         {% block script %}{% endblock %}
         {% block javascript %}{% endblock %}
     </body>
