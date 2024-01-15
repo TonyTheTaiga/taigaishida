@@ -61,7 +61,7 @@ async def table(request: Request, session_id=Cookie(None)):
     query_iterator = query.fetch(
         limit=10, start_cursor=start_cursor
     )
-    images = list(next(query_iterator.pages))
+    images = next(query_iterator.pages)
     session_ids[session_id].append(query_iterator.next_page_token)
     response = templates.TemplateResponse(
         "table.html", {"request": request, "images": images}
