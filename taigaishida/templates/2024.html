@@ -1,15 +1,15 @@
 {% extends "layout.html" %}
 {% block content %}
-  <div id="popup" class="hidden absolute p-2 bg-opacity-85"></div>
-  <div class="h-full w-full flex flex-col">
-    <div id='display'
-         class="h-1/2 image-transition object-scale-down flex justify-center items-center">
-      <img id='jumboImg' class='h-full'>
-    </img>
-  </div>
-  <div id="gallery"
-       class="text-white h-1/2 flex flex-col justify-end items-center overflow-auto"
-       hx-get='/table'
-       hx-trigger='load'></div>
+    <div id="popup" class="hidden absolute p-2 bg-opacity-85"></div>
+    <div class="h-full w-full flex flex-col">
+        <div id='display'
+             class="h-1/2 image-transition object-scale-down flex justify-center items-center">
+            <img id='jumboImg' class='h-full'>
+        </img>
+    </div>
+    <div id="gallery"
+         class="text-white h-1/2 flex flex-col"
+         hx-get='/table'
+         hx-trigger='load'></div>
 {% endblock %}
 {% block script %}<script src='{{ url_for('static', path='2024.js') }}'></script>{% endblock %}
