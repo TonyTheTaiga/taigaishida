@@ -31,29 +31,38 @@ htmx.on("htmx:afterSettle", function (elt) {
      * Event listeners for row interactions
      */
 
+		function displayImage() {};
+
     table.addEventListener("mouseover", (event) => {
       if (event.target.tagName === "TD") {
+				/*
+				I think this is not needed but unsure
         if (popup.childNodes.length >= 1) {
           popup.removeChild(currentImage);
           currentImage = null;
           popup.style.left = 0 + "px";
           popup.style.top = 0 + "px";
+					popup.classList.add("hidden");
+					popup.classList.remove("bg-white");
         }
+				*/
 
         const row = event.target.closest("tr");
         const mediaContent = row.getAttribute("data-src");
 				if (mediaContent == 'Null') {
 					return;
-				}	
+				}
+
         currentImage = new Image((width = 200));
         popup.appendChild(currentImage);
-        currentImage.onload = (event) => {
+        currentImage.src = mediaContent;
+
+				currentImage.onload = (event) => {
           popup.style.left = event.pageX + xOffset + "px";
           popup.style.top = event.pageY + yOffset + "px";
           popup.classList.add("bg-white");
           popup.classList.remove("hidden");
         };
-        currentImage.src = mediaContent;
       }
     });
 
@@ -67,13 +76,13 @@ htmx.on("htmx:afterSettle", function (elt) {
     });
 
     table.addEventListener("mouseout", (event) => {
-      popup.classList.add("hidden");
-      popup.classList.remove("bg-white");
       if (popup.childNodes.length >= 1) {
         popup.removeChild(currentImage);
         currentImage = null;
         popup.style.left = 0 + "px";
         popup.style.top = 0 + "px";
+				popup.classList.add("hidden");
+				popup.classList.remove("bg-white");
       }
     });
 
@@ -84,7 +93,6 @@ htmx.on("htmx:afterSettle", function (elt) {
 				if (imageSrc == "Null") {
 					return;
 				}
-				console.log(imageSrc);
 				jumbo.src = imageSrc;
       }
     });
