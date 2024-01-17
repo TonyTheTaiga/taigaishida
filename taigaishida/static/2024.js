@@ -8,7 +8,7 @@ htmx.on("htmx:afterSettle", function (elt) {
   if (elt["target"].id == "gallery") {
     const popup = document.getElementById("popup");
     const table = document.getElementById("galleryTable");
-    const jumbo = document.getElementById("jumboImg");
+    const jumboStatic = document.getElementById("jumboImg");
     const currentPageNumber = document.getElementById("currentPageNumber");
     const lastPageNumber = document.getElementById("lastPageNumber");
 
@@ -31,7 +31,12 @@ htmx.on("htmx:afterSettle", function (elt) {
      * Event listeners for row interactions
      */
 
-		function displayImage() {};
+		function moveImage(event) {
+			// console.log(currentImage.width, currentImage.height);
+			console.log(event);
+			popup.style.left = event.pageX + xOffset + "px";
+			popup.style.top = event.pageY + yOffset + "px";
+		};
 
     table.addEventListener("mouseover", (event) => {
       if (event.target.tagName === "TD") {
@@ -54,13 +59,14 @@ htmx.on("htmx:afterSettle", function (elt) {
 				}
 
         currentImage = new Image((width = 200));
-        popup.appendChild(currentImage);
         currentImage.src = mediaContent;
+        popup.appendChild(currentImage);
 
 				currentImage.onload = (event) => {
-          popup.style.left = event.pageX + xOffset + "px";
-          popup.style.top = event.pageY + yOffset + "px";
-          popup.classList.add("bg-white");
+          // popup.style.left = event.pageX + xOffset + "px";
+          // popup.style.top = event.pageY + yOffset + "px";
+          // moveImage(event);
+					popup.classList.add("bg-white");
           popup.classList.remove("hidden");
         };
       }
@@ -69,8 +75,9 @@ htmx.on("htmx:afterSettle", function (elt) {
     table.addEventListener("mousemove", (event) => {
       if (event.target.tagName == "TD") {
         if (currentImage) {
-          popup.style.left = event.pageX + xOffset + "px";
-          popup.style.top = event.pageY + yOffset + "px";
+					// popup.style.left = event.pageX + xOffset + "px";
+          // popup.style.top = event.pageY + yOffset + "px";
+					moveImage(event);
         }
       }
     });
@@ -93,7 +100,7 @@ htmx.on("htmx:afterSettle", function (elt) {
 				if (imageSrc == "Null") {
 					return;
 				}
-				jumbo.src = imageSrc;
+				jumboStatic.src = imageSrc;
       }
     });
   }
