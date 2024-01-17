@@ -1,16 +1,26 @@
-<tr class="bg-neutral-800">
-		<th>image</th>
-		<th>camera</th>
-		<th>location</th>
-		<th>date</th>
-</tr>
-{% for image in images %}
-		<tr data-src="{{ image['uri'] }}"
-				data-thumbnail="{{ "foo" }}"
-				class="hover:bg-slate-400">
-				<td>{{ image['name'].upper() }}</td>
-				<td>{{ image['Model'] }}</td>
-				<td>{{ image['latlong'] or 'Earth' }}</td>
-				<td>{{ image['created'] }}</td>
-		</tr>
-{% endfor %}
+<table id="galleryTable"
+       class="gallery-table border border-gray-300 mx-auto w-full text-sm">
+  <tr class="bg-neutral-800">
+    <th>image</th>
+    <th>camera</th>
+    <th>location</th>
+    <th>date</th>
+  </tr>
+  {% for image in images %}
+    <tr data-src="{{ image['uri'] if image else 'Null' }}"
+        data-thumbnail="{{ "foo" }}"
+				class="{{ 'hover:bg-slate-400' if image else ''}}">
+      <td>{{ image['name'].upper() if image else "-" }}</td>
+      <td>{{ image['Model'] if image else "-" }}</td>
+      <td>{{ (image['latlong'] or 'Earth') if image else "-" }}</td>
+      <td>{{ image['created'] if image else "-" }}</td>
+    </tr>
+  {% endfor %}
+</table>
+<div class="flex">
+  <button id="prevPageBtn" class="mx-1 px-3 py-2 cursor-pointer">Previous</button>
+  <div class="mx-1 px-3 py-2">
+    <span id="currentPageNumber">1</span> / <span id="lastPageNumber">{{ total_pages }}</span>
+  </div>
+  <button id="nextPageBtn" class="mx-1 px-3 py-2 cursor-pointer">Next</button>
+</div>

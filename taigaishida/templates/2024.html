@@ -3,25 +3,13 @@
   <div id="popup" class="hidden absolute p-2 bg-opacity-85"></div>
   <div class="h-full w-full flex flex-col">
     <div id='display'
-         class="text-white flex-1 h-1/2 image-transition object-scale-down">
-      <img id='jumboImg' class='h-full mx-auto'>
+         class="h-1/2 image-transition object-scale-down flex justify-center items-center">
+      <img id='jumboImg' class='h-full'>
     </img>
   </div>
-  <div id="gallery" class="text-white overflow-auto h-1/2">
-    <table id="galleryTable"
-           class="gallery-table border border-gray-300 w-full text-sm"
-           hx-get='/table'
-           hx-trigger='load'>
-    </table>
-    <div class="flex justify-end">
-      <ul class="flex list-none">
-        <li class="mx-1 px-3 py-2 cursor-pointer">Previous</li>
-        <li class="mx-1 px-3 py-2 cursor-pointer">1</li>
-        <li class="mx-1 px-3 py-2 cursor-pointer">2</li>
-        <li class="mx-1 px-3 py-2 cursor-pointer">3</li>
-        <li class="mx-1 px-3 py-2 cursor-pointer">Next</li>
-      </ul>
-    </div>
-  </div>
+  <div id="gallery"
+       class="text-white h-1/2 flex flex-col justify-end items-center overflow-auto"
+       hx-get='/table'
+       hx-trigger='load'></div>
 {% endblock %}
 {% block script %}<script src='{{ url_for('static', path='2024.js') }}'></script>{% endblock %}

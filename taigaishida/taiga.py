@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from collections import defaultdict
 from datetime import timedelta
@@ -41,9 +42,7 @@ templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templat
 @app.get("/index", response_class=HTMLResponse)
 def index(request: Request, session_id=Cookie(None)):
     response = templates.TemplateResponse("2024.html", {"request": request})
-    response.set_cookie(
-        key="session_id", value=uuid4().hex, httponly=True
-    )
+    response.set_cookie(key="session_id", value=uuid4().hex, httponly=True)
     return response
 
 
@@ -56,15 +55,23 @@ async def about(request: Request):
 async def table(request: Request, session_id=Cookie(None)):
     logger.info(f"session_id: {session_id}")
 
+    limit = 10
     query = ds_client.query(kind="Image")
+    count_query = ds_client.aggregation_query(query).count()
+    total_images = next(count_query.fetch())[0].value
+    total_pages = math.ceil(total_images / limit)
+
+    query.order = ["-created"]
     start_cursor = session_ids[session_id][-1] if session_id in session_ids else None
-    query_iterator = query.fetch(
-        limit=10, start_cursor=start_cursor
-    )
-    images = next(query_iterator.pages)
+    query_iterator = query.fetch(limit=limit, start_cursor=start_cursor)
+    images = list(next(query_iterator.pages))
+    if len(images) < 10:
+        images += [None] * (10 - (len(images)))
+
     session_ids[session_id].append(query_iterator.next_page_token)
     response = templates.TemplateResponse(
-        "table.html", {"request": request, "images": images}
+        "table.html",
+        {"request": request, "images": images, "total_pages": total_pages},
     )
     return response
 

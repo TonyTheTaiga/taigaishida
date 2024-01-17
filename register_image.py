@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 
+from functools import lru_cache
+from collections.abc import Iterable
+from contextlib import ExitStack
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import os
 import argparse
 from pathlib import Path
 from datetime import datetime
+from typing import NamedTuple
 
+import cv2
 import tqdm
 from google.cloud import datastore, storage
 import exifread
@@ -23,7 +29,9 @@ def dms_to_decimal(dms):
     """
 
     # Unpack the degrees, minutes, and seconds
-    degrees, minutes, seconds_fraction = dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
+    degrees, minutes, seconds_fraction = (
+        dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
+    )
     # Convert the seconds fraction if it's a string fraction
     if isinstance(seconds_fraction, str) and "/" in seconds_fraction:
         numerator, denominator = map(float, seconds_fraction.split("/"))
@@ -60,8 +68,8 @@ def read_exif(image) -> dict:
 
     # Might need to gracefully handle values that may not cast into strings nicely
     tags = {k.split(" ")[-1]: str(v) for k, v in tags.items()}
-
     tags["created"] = convert_datetime_to_iso_format(tags["DateTime"])
+    
     try:
         tags[
             "latlong"
@@ -76,37 +84,80 @@ def read_exif(image) -> dict:
     return tags
 
 
+class ExifData(NamedTuple):
+    data: dict
+    image: str
+
+
+def gen(path_or_image: Path):
+    if path_or_image.is_dir():
+        for image in path_or_image.glob("*"):
+            if image.name.startswith(".") or image.name.endswith(".MOV"):
+                continue
+            
+            exif = read_exif(image.as_posix())
+            if not exif:
+                continue
+
+            yield ExifData(data=exif, image=image.absolute().as_posix())
+    else:
+        exif = read_exif(path_or_image.as_posix())
+        yield ExifData(data=exif, image=path_or_image.absolute().as_posix())
+
+
+@lru_cache()
+def get_client():
+    print(f'creating client')
+    return storage.Client()
+
+@lru_cache()
+def get_ds_client():
+    print(f'creating ds client')
+    return datastore.Client()
+
+def resize_image(image):
+    h, w, _ = image.shape
+
+
+def _process(data: ExifData):
+    s_client = get_client()
+    ds_client = get_ds_client()
+
+    name = os.path.basename(data.image)
+    gs_uri = f"gs://taiga-ishida-public/dev/tmp/{name}"
+    blob = storage.Blob.from_string(gs_uri, client=s_client)
+    blob.upload_from_filename(data.image)
+
+    # resize image
+
+    entity_data = {
+        **data.data,
+        "uri": blob.public_url,
+        'thumbnail_uri': '',
+        "name": os.path.basename(data.image),
+    }
+    entity = create_entity("Image", entity_data, ds_client)
+    return entity
+
+
+def process_data(data: Iterable[ExifData], num_files=None):
+    with ExitStack() as stack:
+        executor = stack.enter_context(ProcessPoolExecutor(max_workers=8))
+        process_bar = stack.enter_context(tqdm.tqdm(total=num_files))
+        futures = [executor.submit(_process, _data) for _data in data]
+
+        for future in as_completed(futures):
+            process_bar.update(1)
+            yield future.result()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, required=True)
     args = parser.parse_args()
     path = Path(args.image)
-    exifs = []
     ds_client = datastore.Client(database="")
     s_client = storage.Client()
+    entities = list(process_data(gen(path)))
+    get_ds_client().put_multi(entities)
 
-    if path.is_dir():
-        for image in path.glob("*"):
-            if image.name.startswith("._") or image.name.endswith(".MOV"):
-                continue
-
-            exif = read_exif(image.as_posix())
-            if not exif:
-                continue
-
-            exifs.append((image.absolute().as_posix(), exif))
-    else:
-        exif = read_exif(path.as_posix())
-        exifs.append((path.absolute().as_posix(), exif))
-
-    entities = []
-    for im, exif in tqdm.tqdm(exifs):
-        name = os.path.basename(im)
-        gs_uri = f"gs://taiga-ishida-public/dev/tmp/{name}"
-        blob = storage.Blob.from_string(gs_uri, client=s_client)
-        # blob.upload_from_filename(im)
-        entity_data = {**exif, "uri": blob.public_url, "name": os.path.basename(im)}
-        entity = create_entity("Image", entity_data, ds_client)
-        entities.append(entity)
-
-    # ds_client.put_multi(entities)
