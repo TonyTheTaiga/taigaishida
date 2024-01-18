@@ -12,28 +12,28 @@ htmx.on("htmx:afterSettle", function (elt) {
     const currentPageNumber = document.getElementById("currentPageNumber");
     const lastPageNumber = document.getElementById("lastPageNumber");
 
-    function prevPage() {
-      console.log("prev...");
-      // htmx.trigger("#prevButton", "goPrev");
-    }
 
-		document.getElementById('prevPageBtn').addEventListener('click', prevPage);
+		const prevPageBtn = document.getElementById('prevPageBtn');
+		if (currentPageNumber.textContent == 1) {
+			prevPageBtn.disabled = true;
+			prevPageBtn.classList.add('text-gray-800');
+		};
+		prevPageBtn.addEventListener('click', () => {htmx.trigger("#prevPageBtn", "loadPrevPage")});
 
-    function nextPage() {
-      console.log("next...");
-			// htmx.trigger("#nextButton", "goNext");
-    }
-
-		document.getElementById('nextPageBtn').addEventListener('click', nextPage);
-
-
-    /*
+		const nextPageBtn = document.getElementById('nextPageBtn');
+		if (currentPageNumber.textContent.trim() == lastPageNumber.textContent.trim()) {
+			nextPageBtn.disabled = true;
+			nextPageBtn.classList.add('text-gray-800');
+		};
+		nextPageBtn.addEventListener('click', ()=>{htmx.trigger("#nextPageBtn", "loadNextPage")});
+    
+		/*
      * Event listeners for row interactions
      */
 
 		function moveImage(event) {
 			// console.log(currentImage.width, currentImage.height);
-			console.log(event);
+			// console.log(event);
 			popup.style.left = event.pageX + xOffset + "px";
 			popup.style.top = event.pageY + yOffset + "px";
 		};

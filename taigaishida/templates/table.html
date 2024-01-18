@@ -1,29 +1,37 @@
 <div class="flex-grow"></div>
 <div class="overflow-auto">
-    <table id="galleryTable"
-           class="gallery-table border border-gray-300 text-sm w-full">
-        <tr class="bg-neutral-800">
-            <th>image</th>
-            <th>camera</th>
-            <th>location</th>
-            <th>date</th>
-        </tr>
-        {% for image in images %}
-            <tr data-src="{{ image['uri'] if image else 'Null' }}"
-                data-thumbnail="{{ "foo" }}"
-                class="{{ 'hover:bg-slate-400' if image else ''}}">
-                <td>{{ image['name'].upper() if image else "-" }}</td>
-                <td>{{ image['Model'] if image else "-" }}</td>
-                <td>{{ (image['latlong'] or 'Earth') if image else "-" }}</td>
-                <td>{{ image['created'] if image else "-" }}</td>
-            </tr>
-        {% endfor %}
-    </table>
+  <table id="galleryTable"
+         class="gallery-table border border-gray-300 text-sm w-full">
+    <tr class="bg-neutral-800">
+      <th>image</th>
+      <th>camera</th>
+      <th>location</th>
+      <th>date</th>
+    </tr>
+    {% for image in images %}
+      <tr data-src="{{ image['uri'] if image else 'Null' }}"
+          data-thumbnail="{{ "foo" }}"
+          class="{{ 'hover:bg-slate-400' if image else ''}}">
+        <td>{{ image['name'].upper() if image else "-" }}</td>
+        <td>{{ image['Model'] if image else "-" }}</td>
+        <td>{{ (image['latlong'] or 'Earth') if image else "-" }}</td>
+        <td>{{ image['created'] if image else "-" }}</td>
+      </tr>
+    {% endfor %}
+  </table>
 </div>
 <div class="flex justify-end">
-    <button id="prevPageBtn" class="mx-1 px-3 py-2 cursor-pointer">Previous</button>
-    <div class="mx-1 px-3 py-2">
-        <span id="currentPageNumber">1</span> / <span id="lastPageNumber">{{ total_pages }}</span>
-    </div>
-    <button id="nextPageBtn" class="mx-1 px-3 py-2 cursor-pointer">Next</button>
+  <button id="prevPageBtn"
+          class="mx-1 px-3 py-2 cursor-pointer"
+          hx-get='/table'
+          hx-trigger='loadPrevPage'
+          hx-target='#gallery'>Previous</button>
+  <div class="mx-1 px-3 py-2">
+		<span id="currentPageNumber"> {{ current_page }} </span> / <span id="lastPageNumber">{{ total_pages }}</span>
+  </div>
+  <button id="nextPageBtn"
+          class="mx-1 px-3 py-2 cursor-pointer"
+          hx-get='/table'
+          hx-trigger='loadNextPage'
+          hx-target='#gallery'>Next</button>
 </div>
