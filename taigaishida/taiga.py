@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
+from functools import lru_cache
 
 from fastapi import Cookie, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -19,6 +20,7 @@ IMAGE_BUCKET = "taiga-ishida-public"
 IMAGE_PREFIX = "webp_images"
 GCS_API_ROOT = "https://storage.googleapis.com"
 CORRECT_PASSPHRASE = "greengrass123"
+PAGE_LIMIT = 10
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui")
@@ -51,32 +53,39 @@ async def about(request: Request):
     return templates.TemplateResponse("about.html", {"request": request})
 
 
-@app.get("/table", response_class=HTMLResponse)
-async def table(request: Request, session_id=Cookie(None)):
-    logger.info(f"session_id: {session_id}")
+# @lru_cache()
+def get_images(start_cursor, limit):
+    logging.info("querying for images")
+    query = ds_client.query(kind="Image")
+    query.order = ["-created"]
+    query_iterator = query.fetch(limit=limit, start_cursor=start_cursor)
+    images = list(next(query_iterator.pages))
+    return images, query_iterator.next_page_token
 
-    limit = 10
+
+@app.get("/table", response_class=HTMLResponse)
+def table(request: Request, session_id: str = Cookie(None)):
     query = ds_client.query(kind="Image")
     count_query = ds_client.aggregation_query(query).count()
     total_images = next(count_query.fetch())[0].value
-    total_pages = math.ceil(total_images / limit)
-
-    query.order = ["-created"]
+    total_pages = math.ceil(total_images / PAGE_LIMIT)
     start_cursor = session_ids[session_id][-1] if session_id in session_ids else None
-    query_iterator = query.fetch(limit=limit, start_cursor=start_cursor)
-    images = list(next(query_iterator.pages))
+    images, next_page_token = get_images(start_cursor, PAGE_LIMIT)
     if len(images) < 10:
         images += [None] * (10 - (len(images)))
 
-    session_ids[session_id].append(query_iterator.next_page_token)
+    print(f'start_cursor: {start_cursor} next page: {next_page_token}')
+
+    session_ids[session_id].append(next_page_token)
     print(session_ids[session_id])
+
     response = templates.TemplateResponse(
         "table.html",
         {
             "request": request,
             "images": images,
             "total_pages": total_pages,
-            "current_page": session_ids[session_id].index(query_iterator.next_page_token) + 1,
+            "current_page": session_ids[session_id].index(next_page_token) + 1,
         },
     )
     return response
