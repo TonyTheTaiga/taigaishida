@@ -53,7 +53,6 @@ async def about(request: Request):
     return templates.TemplateResponse("about.html", {"request": request})
 
 
-# @lru_cache()
 def get_images(start_cursor, limit):
     logging.info("querying for images")
     query = ds_client.query(kind="Image")
@@ -74,7 +73,7 @@ def table(request: Request, session_id: str = Cookie(None)):
     if len(images) < 10:
         images += [None] * (10 - (len(images)))
 
-    print(f'start_cursor: {start_cursor} next page: {next_page_token}')
+    print(f"start_cursor: {start_cursor} next page: {next_page_token}")
 
     session_ids[session_id].append(next_page_token)
     print(session_ids[session_id])
@@ -89,6 +88,22 @@ def table(request: Request, session_id: str = Cookie(None)):
         },
     )
     return response
+
+
+@app.get("/table-data")
+def table2(request: Request):
+    query = ds_client.query(kind="Image")
+    query.order = ["-created"]
+    res = query.fetch()
+    return [
+        {
+            "uri": entity["uri"],
+            "name": entity["name"].upper(),
+            "model": entity["Model"],
+            "location": entity.get("latlong", "Earth"),
+        }
+        for entity in res
+    ]
 
 
 @app.get("/upload", response_class=HTMLResponse)
