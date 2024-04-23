@@ -102,8 +102,6 @@ def get_upload_url(item: Item):
     if item.passphrase != CORRECT_PASSPHRASE:
         raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
-    logger.info(f"SA {client._credentials.service_account_email}")
-
     auth_request = requests.Request()
     signing_credentials = compute_engine.IDTokenCredentials(
         auth_request,
