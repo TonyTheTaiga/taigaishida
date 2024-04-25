@@ -45,13 +45,13 @@ client = storage.Client()
 
 @lru_cache()
 def get_client() -> storage.Client:
-    print(f"creating client")
+    logger.debug(f"creating client")
     return storage.Client()
 
 
 @lru_cache()
 def get_ds_client() -> datastore.Client:
-    print(f"creating ds client")
+    logger.debug(f"creating ds client")
     return datastore.Client()
 
 
@@ -199,11 +199,13 @@ def register_image(request: RegisterImageRequest):
     q = ds_client.query(kind=IMAGE_KIND)
     q.add_filter(filter=PropertyFilter("md5", "=", str(blob.md5_hash)))
 
-    if not list(q.fetch()) == []:
-        raise HTTPException(status_code=409, detail='image with this md5 already exists')
+    if not len(list(q.fetch())) == 0:
+        blob.delete()
+        raise HTTPException(
+            status_code=409, detail="image with this md5 already exists"
+        )
 
-
-    tags = read_exif(blob.open(mode="rb"))  # pyright: ignore
+    tags = read_exif(blob.open(mode="rb"))
     data = {"name": request.filename, "md5": str(blob.md5_hash), **tags}
     entity = create_entity(IMAGE_KIND, data, ds_client)
     ds_client.put(entity)
