@@ -12,3 +12,6 @@ update-cors:
 
 clear-cors:
 	gcloud storage buckets update gs://taiga-ishida-public --clear-cors
+
+start-server:
+	uvicorn taigaishida.taiga:app --reload
