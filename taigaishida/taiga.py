@@ -4,6 +4,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
 
@@ -70,8 +71,10 @@ def get_openai_client() -> OpenAI:
     return OpenAI()
 
 
-def get_haiku(image):
-    format_image = lambda base64_image: f"data:image/jpeg;base64,{base64_image}"
+_format_image = lambda base64_image: f"data:image/jpeg;base64,{base64_image}"
+
+
+def get_haiku(b64_image: str):
     client = get_openai_client()
     response = client.chat.completions.create(
         model="gpt-4-turbo",
@@ -91,7 +94,7 @@ def get_haiku(image):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": format_image(image),
+                            "url": _format_image(b64_image),
                         },
                     },
                 ],
@@ -100,8 +103,20 @@ def get_haiku(image):
         max_tokens=500,
     )
 
-    message = response.choices[0].message.content
-    return list(json.loads(message).values())  # pyright: ignore
+    content = response.choices[0].message.content
+    if not content:
+        raise RuntimeError("didn't get a valid response from openAI")
+
+    try:
+        message = json.loads(content)  # pyright: ignore
+    except json.decoder.JSONDecodeError as e:
+        if content.startswith("```json"):
+            message = json.loads(content.lstrip("```json").rstrip("```").replace("\n", "").replace(" ", ""))
+        else:
+            print(response.choices[0].message.content)
+            raise e
+
+    return list(message.values())
 
 
 def get_gallery_items() -> List[GalleryItem]:
@@ -186,6 +201,15 @@ def get_blob(src, client) -> storage.Blob:
     return storage.Blob.from_string(src, client=client)
 
 
+def check_entity_exists(hash: str, client: datastore.Client):
+    q = client.query(kind=IMAGE_KIND)
+    q.add_filter(filter=PropertyFilter("md5", "=", hash))
+    if len(list(q.fetch())) > 0:
+        return True
+
+    return False
+
+
 def register_image_bg(request: RegisterImageRequest):
     bg_logger.info(f"processing {request}")
     client = get_client()
@@ -198,26 +222,25 @@ def register_image_bg(request: RegisterImageRequest):
         return
 
     blob.reload()
+    hash = str(blob.md5_hash)
 
-    q = ds_client.query(kind=IMAGE_KIND)
-    q.add_filter(filter=PropertyFilter("md5", "=", str(blob.md5_hash)))
-    if not len(list(q.fetch())) == 0:
+    if check_entity_exists(hash, ds_client):
         blob.delete()
-        bg_logger.info(f"image with md5 already exists")
+        bg_logger.warning(f"image with md5 already exists")
         return
 
-    tags = read_exif(blob.open(mode="rb"))
-
-    b64_image = base64.b64encode(blob.open(mode="rb").read()).decode("utf-8")  # pyright: ignore
+    image_data = BytesIO(blob.open("rb").read())  # pyright: ignore
+    exif_data = read_exif(image_data)
+    b64_image = base64.b64encode(image_data.getvalue()).decode("utf-8")
     haiku_lines = get_haiku(b64_image)
     print(haiku_lines)
     uri = f"gs://{blob.bucket.name}/{blob.name}"
     data = {
         "name": request.filename,
-        "md5": str(blob.md5_hash),
+        "md5": hash,
         "haiku": haiku_lines,
         "uri": uri,
-        **tags,
+        **exif_data,
     }
     entity = create_entity(IMAGE_KIND, data, ds_client)
     ds_client.put(entity)
