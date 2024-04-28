@@ -1,46 +1,56 @@
+import base64
+import json
 import logging
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
-from functools import lru_cache
-from datetime import datetime
-import json
 
 import cv2
+import exifread
 import google.auth
 import numpy as np
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from google.auth import compute_engine
 from google.auth.transport import requests
-from google.cloud import storage, datastore
+from google.cloud import datastore, storage
 from google.cloud.datastore.query import PropertyFilter
+from openai import OpenAI
 from pydantic import BaseModel
-import exifread
 
-IMAGE_BUCKET = "taiga-ishida-public"
+PUBLIC_BUCKET = "taiga-ishida-public"
+PRIVATE_BUCKET = "taiga-ishida-private"
 IMAGE_PREFIX = "webp_images"
 GCS_API_ROOT = "https://storage.googleapis.com"
 CORRECT_PASSPHRASE = "greengrass123"
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui")
+bg_logger = logging.getLogger("bg")
 
 IMAGE_KIND = "Image"
 
-app = FastAPI()
 
-app.mount(
-    "/static",
-    StaticFiles(directory=Path(__file__).parent.resolve() / "static"),
-    name="static",
-)
-templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
+class GalleryItem(BaseModel):
+    id: str
+    name: Optional[str] = "???"
 
-client = storage.Client()
+    @property
+    def url(self) -> str:
+        return os.path.join(GCS_API_ROOT, PUBLIC_BUCKET, self.id)
+
+
+class Item(BaseModel):
+    filename: str
+    passphrase: str
+    content_type: str
+
+
+class RegisterImageRequest(BaseModel):
+    filename: str
 
 
 @lru_cache()
@@ -55,29 +65,48 @@ def get_ds_client() -> datastore.Client:
     return datastore.Client()
 
 
-def convert_bytes_to_image(image_bytes) -> np.ndarray:
-    return cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+@lru_cache()
+def get_openai_client() -> OpenAI:
+    return OpenAI()
 
 
-def convert_image_to_bytes(image, extension, params=None):
-    ret, buf = cv2.imencode(extension, image, params)  # pyright: ignore
-    if not ret:
-        raise RuntimeError("Failed to convert image to bytes")
+def get_haiku(image):
+    format_image = lambda base64_image: f"data:image/jpeg;base64,{base64_image}"
+    client = get_openai_client()
+    response = client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a astronaught from the future where civilization has collapsed; visiting earth for the first time. Things in this era are foreign to you.",
+            },
+            {
+                "role": "system",
+                "content": 'Return haikus in json string format with the following schema {"1": "5 syllables", "2": "7 syllables", "3": "5 syallbles"}',
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Write a haiku describing this image"},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": format_image(image),
+                        },
+                    },
+                ],
+            },
+        ],
+        max_tokens=500,
+    )
 
-    return buf.tobytes()
-
-
-class GalleryItem(BaseModel):
-    id: str
-    name: Optional[str] = "???"
-
-    @property
-    def url(self) -> str:
-        return os.path.join(GCS_API_ROOT, IMAGE_BUCKET, self.id)
+    message = response.choices[0].message.content
+    return list(json.loads(message).values())  # pyright: ignore
 
 
 def get_gallery_items() -> List[GalleryItem]:
-    blobs = client.list_blobs(IMAGE_BUCKET, prefix=IMAGE_PREFIX)
+    client = get_client()
+    blobs = client.list_blobs(PUBLIC_BUCKET, prefix=IMAGE_PREFIX)
     return [
         GalleryItem(id=blob.name, name=blob.name.split("/")[-1])
         for blob in blobs
@@ -90,35 +119,6 @@ def get_gallery_items() -> List[GalleryItem]:
         or blob.name.endswith(".PNG")
         or blob.name.endswith(".JPEG")
     ]
-
-
-@app.get("/gallery", response_class=HTMLResponse)
-@app.get("/", response_class=HTMLResponse)
-async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
-    return templates.TemplateResponse(
-        "gallery.html",
-        {"request": request, "gallery": [item.url for item in gallery_items]},
-    )
-
-
-@app.get("/about", response_class=HTMLResponse)
-async def about(request: Request):
-    return templates.TemplateResponse("about.html", {"request": request})
-
-
-@app.get("/upload", response_class=HTMLResponse)
-async def upload(request: Request):
-    return templates.TemplateResponse("upload.html", {"request": request})
-
-
-class Item(BaseModel):
-    filename: str
-    passphrase: str
-    content_type: str
-
-
-class RegisterImageRequest(BaseModel):
-    filename: str
 
 
 def dms_to_decimal(dms):
@@ -134,9 +134,7 @@ def dms_to_decimal(dms):
     """
 
     # Unpack the degrees, minutes, and seconds
-    degrees, minutes, seconds_fraction = (
-        dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
-    )
+    degrees, minutes, seconds_fraction = dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
     # Convert the seconds fraction if it's a string fraction
     if isinstance(seconds_fraction, str) and "/" in seconds_fraction:
         numerator, denominator = map(float, seconds_fraction.split("/"))
@@ -148,7 +146,7 @@ def dms_to_decimal(dms):
     return decimal_degrees
 
 
-def convert_datetime_to_iso_format(datetime_str):
+def _convert_datetime_to_iso_format(datetime_str):
     # Parse the original datetime string
     dt = datetime.strptime(datetime_str, "%Y:%m:%d %H:%M:%S")
 
@@ -163,13 +161,13 @@ def read_exif(image_buf) -> dict:
 
     # Might need to gracefully handle values that may not cast into strings nicely
     tags = {k.split(" ")[-1]: str(v).strip() for k, v in tags.items()}
-    tags["created"] = convert_datetime_to_iso_format(tags["DateTime"])
+    tags["created"] = _convert_datetime_to_iso_format(tags["DateTime"])
 
     try:
         tags[
             "latlong"
         ] = f'{dms_to_decimal(tags["GPSLatitude"]):.5f} {tags["GPSLatitudeRef"]}, {dms_to_decimal(tags["GPSLongitude"]):.5f} {tags["GPSLongitudeRef"]}'
-    except Exception as e:
+    except Exception:
         pass
 
     # Convert lat long to a city, Earth if unknown
@@ -179,61 +177,110 @@ def read_exif(image_buf) -> dict:
 
 
 def create_entity(kind: str, data: dict, client=None) -> datastore.Entity:
-    if client is None:
-        client = datastore.Client()
-
-    entity = datastore.Entity(client.key(kind))
+    entity = datastore.Entity(client.key(kind))  # pyright: ignore
     entity.update(data)
     return entity
 
 
-@app.post("/register-image")
-def register_image(request: RegisterImageRequest):
+def get_blob(src, client) -> storage.Blob:
+    return storage.Blob.from_string(src, client=client)
+
+
+def register_image_bg(request: RegisterImageRequest):
+    bg_logger.info(f"processing {request}")
     client = get_client()
     ds_client = get_ds_client()
-    blob = storage.Blob.from_string(
-        f"gs://{IMAGE_BUCKET}/dev/staging/{request.filename}", client=client
-    )
-    assert blob.exists(), "blob doesn't exist"
+    src = f"gs://{PRIVATE_BUCKET}/staging/{request.filename}"
+    blob = get_blob(src, client)
+
+    if not blob.exists():
+        bg_logger.warning(f"blob doesn't exist")
+        return
+
     blob.reload()
+
     q = ds_client.query(kind=IMAGE_KIND)
     q.add_filter(filter=PropertyFilter("md5", "=", str(blob.md5_hash)))
-
     if not len(list(q.fetch())) == 0:
         blob.delete()
-        raise HTTPException(
-            status_code=409, detail="image with this md5 already exists"
-        )
+        bg_logger.info(f"image with md5 already exists")
+        return
 
     tags = read_exif(blob.open(mode="rb"))
-    data = {"name": request.filename, "md5": str(blob.md5_hash), **tags}
+
+    b64_image = base64.b64encode(blob.open(mode="rb").read()).decode("utf-8")  # pyright: ignore
+    haiku_lines = get_haiku(b64_image)
+    print(haiku_lines)
+    uri = f"gs://{blob.bucket.name}/{blob.name}"
+    data = {
+        "name": request.filename,
+        "md5": str(blob.md5_hash),
+        "haiku": haiku_lines,
+        "uri": uri,
+        **tags,
+    }
     entity = create_entity(IMAGE_KIND, data, ds_client)
     ds_client.put(entity)
 
 
-@app.post("/get-upload-url")
-def get_upload_url(item: Item):
-    if item.passphrase != CORRECT_PASSPHRASE:
-        raise HTTPException(status_code=403, detail="Incorrect passphrase")
+def build_app() -> FastAPI:
+    logging.basicConfig(level=logging.INFO)
 
-    # auth_request = requests.Request()
-    # signing_credentials = compute_engine.IDTokenCredentials(
-    #     auth_request,
-    #     "",
-    #     service_account_email="storager@taigaishida-217622.iam.gserviceaccount.com",
-    # )
-    #
-    signing_credentials, project = google.auth.default()
+    app = FastAPI()
 
-    # Generate a signed URL for uploading a file
-    # blob = client.bucket(IMAGE_BUCKET).blob(os.path.join(IMAGE_PREFIX, item.filename))
-    blob = client.bucket(IMAGE_BUCKET).blob(os.path.join("dev/staging", item.filename))
-    url = blob.generate_signed_url(
-        version="v4",
-        expiration=timedelta(minutes=15),
-        credentials=signing_credentials,
-        method="PUT",
-        content_type=item.content_type,
+    app.mount(
+        "/static",
+        StaticFiles(directory=Path(__file__).parent.resolve() / "static"),
+        name="static",
     )
+    templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
-    return {"uploadUrl": url}
+    @app.post("/register-image", status_code=201)
+    def register_image(request: RegisterImageRequest, background_tasks: BackgroundTasks):
+        background_tasks.add_task(register_image_bg, request)
+
+    @app.post("/get-upload-url")
+    def get_upload_url(item: Item):
+        if item.passphrase != CORRECT_PASSPHRASE:
+            raise HTTPException(status_code=403, detail="Incorrect passphrase")
+
+        # auth_request = requests.Request()
+        # signing_credentials = compute_engine.IDTokenCredentials(
+        #     auth_request,
+        #     "",
+        #     service_account_email="storager@taigaishida-217622.iam.gserviceaccount.com",
+        # )
+        #
+        signing_credentials, project = google.auth.default()  # pyright: ignore
+
+        client = get_client()
+        blob = client.bucket(PRIVATE_BUCKET).blob(os.path.join("staging", item.filename))
+
+        # Generate a signed URL for uploading a file
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(minutes=5),
+            credentials=signing_credentials,
+            method="PUT",
+            content_type=item.content_type,
+        )
+
+        return {"uploadUrl": url}
+
+    @app.get("/gallery", response_class=HTMLResponse)
+    @app.get("/", response_class=HTMLResponse)
+    async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
+        return templates.TemplateResponse(
+            "gallery.html",
+            {"request": request, "gallery": [item.url for item in gallery_items]},
+        )
+
+    @app.get("/about", response_class=HTMLResponse)
+    async def about(request: Request):
+        return templates.TemplateResponse("about.html", {"request": request})
+
+    @app.get("/upload", response_class=HTMLResponse)
+    async def upload(request: Request):
+        return templates.TemplateResponse("upload.html", {"request": request})
+
+    return app

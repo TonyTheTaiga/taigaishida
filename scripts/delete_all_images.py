@@ -4,7 +4,7 @@ from google.cloud import datastore
 client = datastore.Client()
 
 # Define the kind for which you want to delete all entities
-kind = 'Image'
+kind = "Image"
 
 # Create a query to retrieve all entities of the specified kind
 query = client.query(kind=kind)
@@ -16,4 +16,4 @@ entities = list(query.fetch())
 for entity in entities:
     client.delete(entity.key)
 
-print(f'Deleted {len(entities)} entities of kind {kind}')
+print(f"Deleted {len(entities)} entities of kind {kind}")

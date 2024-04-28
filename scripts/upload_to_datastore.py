@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
-from functools import lru_cache
-from collections.abc import Iterable
-from contextlib import ExitStack
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import argparse
 import json
 import os
-import argparse
-from pathlib import Path
+from collections.abc import Iterable
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import ExitStack
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 from typing import NamedTuple
 
+import exifread
 import tqdm
 from google.cloud import datastore, storage
-import exifread
 
 
 def dms_to_decimal(dms):
@@ -29,7 +29,9 @@ def dms_to_decimal(dms):
     """
 
     # Unpack the degrees, minutes, and seconds
-    degrees, minutes, seconds_fraction = dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
+    degrees, minutes, seconds_fraction = (
+        dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
+    )
     # Convert the seconds fraction if it's a string fraction
     if isinstance(seconds_fraction, str) and "/" in seconds_fraction:
         numerator, denominator = map(float, seconds_fraction.split("/"))
