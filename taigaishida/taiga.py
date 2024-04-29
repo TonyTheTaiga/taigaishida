@@ -8,10 +8,8 @@ from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
 
-import cv2
 import exifread
 import google.auth
-import numpy as np
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
