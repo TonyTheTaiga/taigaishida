@@ -7,7 +7,9 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
+import random
 
+import cv2
 import exifread
 import google.auth
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
@@ -20,6 +22,7 @@ from google.cloud import datastore, storage
 from google.cloud.datastore.query import PropertyFilter
 from openai import OpenAI
 from pydantic import BaseModel
+import numpy as np
 
 PUBLIC_BUCKET = "taiga-ishida-public"
 PRIVATE_BUCKET = "taiga-ishida-private"
@@ -69,7 +72,7 @@ def get_openai_client() -> OpenAI:
     return OpenAI()
 
 
-_format_image = lambda base64_image: f"data:image/jpeg;base64,{base64_image}"
+_format_image = lambda base64_image: f"data:image/webp;base64,{base64_image}"
 
 
 def get_haiku(b64_image: str):
@@ -208,6 +211,26 @@ def check_entity_exists(hash: str, client: datastore.Client):
     return False
 
 
+def convert_to_webp_in_memory(image, quality=90) -> bytes:
+    # Encode the image to WebP in memory
+    result, encoded_image = cv2.imencode(".webp", image, [cv2.IMWRITE_WEBP_QUALITY, quality])
+
+    if not result:
+        raise RuntimeError("could not convert image to webp")
+
+    # If you need to use the binary data, you can convert it to a bytes object
+    image_bytes = encoded_image.tobytes()
+
+    return image_bytes
+
+
+def upload(data: bytes, url: str, client: storage.Client, content_type: str) -> storage.Blob:
+    blob = storage.Blob.from_string(url, client=client)
+    blob.upload_from_string(data, content_type=content_type)
+
+    return blob
+
+
 def register_image_bg(request: RegisterImageRequest):
     bg_logger.info(f"processing {request}")
     client = get_client()
@@ -228,20 +251,28 @@ def register_image_bg(request: RegisterImageRequest):
         return
 
     image_data = BytesIO(blob.open("rb").read())  # pyright: ignore
+
+    image = cv2.imdecode(np.frombuffer(image_data.getvalue(), dtype=np.uint8), cv2.IMREAD_COLOR)
+    webp_image = convert_to_webp_in_memory(image, quality=75)
+    new_filename = request.filename.split(".")[0] + ".webp"
+    webp_blob = upload(webp_image, f"gs://{PUBLIC_BUCKET}/{IMAGE_PREFIX}/{new_filename}", client, "image/webp")
     exif_data = read_exif(image_data)
-    b64_image = base64.b64encode(image_data.getvalue()).decode("utf-8")
+    b64_image = base64.b64encode(webp_image).decode("utf-8")
     haiku_lines = get_haiku(b64_image)
-    print(haiku_lines)
-    uri = f"gs://{blob.bucket.name}/{blob.name}"
     data = {
         "name": request.filename,
         "md5": hash,
         "haiku": haiku_lines,
-        "uri": uri,
+        "public_url": webp_blob.public_url,
         **exif_data,
     }
     entity = create_entity(IMAGE_KIND, data, ds_client)
     ds_client.put(entity)
+
+
+def get_entities(kind, client: datastore.Client):
+    query = client.query(kind=kind)
+    return list(query.fetch())
 
 
 def build_app() -> FastAPI:
@@ -291,9 +322,13 @@ def build_app() -> FastAPI:
     @app.get("/gallery", response_class=HTMLResponse)
     @app.get("/", response_class=HTMLResponse)
     async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
+        ds_client = get_ds_client()
+        entities = get_entities("Image", ds_client)
+        gallery = [{"url": e["public_url"]} for e in entities]
+        random.shuffle(gallery)
         return templates.TemplateResponse(
             "gallery.html",
-            {"request": request, "gallery": [item.url for item in gallery_items]},
+            {"request": request, "gallery": gallery},
         )
 
     @app.get("/about", response_class=HTMLResponse)

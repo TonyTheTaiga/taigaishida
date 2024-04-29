@@ -1,28 +1,18 @@
 {% extends "layout.html" %}
 {% block content %}
 <section class="text-white">
-  <img src="{{ gallery[0] }}" class="image-transition object-scale-down h-screen-95 mx-auto pb-10" id="imageDisplay" />
+  <img src="{{ gallery[0].url }}" class="image-transition object-scale-down h-screen-95 mx-auto pb-10" id="imageDisplay" />
 </section>
 
 <script type="text/javascript">
-  const IMAGE_INTERVAL = 3000;
+  const IMAGE_INTERVAL = 1500;
   const images = {{ gallery|safe }};
   let currentImageIndex = 0;
 
-  function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-
-  const shuffledImages = shuffleArray(images);
-
   setInterval(() => {
-    currentImageIndex = (currentImageIndex + 1) % shuffledImages.length;
+    currentImageIndex = (currentImageIndex + 1) % images.length;
     const imageDisplay = document.getElementById("imageDisplay");
-    imageDisplay.src = shuffledImages[currentImageIndex];
+    imageDisplay.src = images[currentImageIndex].url;
   }, IMAGE_INTERVAL);
 </script>
 {% endblock %}
