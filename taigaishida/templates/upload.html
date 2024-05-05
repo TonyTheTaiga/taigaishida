@@ -107,13 +107,15 @@
 
             try {
                 const file = fileInput.files[0];
-                const extension = file.name.split(".").pop();
+                const extension = file.name.split(".").pop().toLowerCase();
                 const uniqueName =
                     new Date().getTime() +
                     "-" +
                     Math.round(Math.random() * 1e9) +
                     "." +
                     extension;
+
+                console.log("Uploading file", file.name, "as", uniqueName);
 
                 const response = await fetch("/get-upload-url", {
                     method: "POST",
