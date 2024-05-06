@@ -2,14 +2,13 @@ import base64
 import json
 import logging
 import os
+import random
 from datetime import datetime, timedelta
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
-import random
 
-import cv2
 import exifread
 import google.auth
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
@@ -21,8 +20,11 @@ from google.auth.transport import requests
 from google.cloud import datastore, storage
 from google.cloud.datastore.query import PropertyFilter
 from openai import OpenAI
+from PIL import Image, ImageOps
+from pillow_heif import register_heif_opener
 from pydantic import BaseModel
-import numpy as np
+
+register_heif_opener()
 
 PUBLIC_BUCKET = "taiga-ishida-public"
 PRIVATE_BUCKET = "taiga-ishida-private"
@@ -82,7 +84,7 @@ def get_haiku(b64_image: str):
         messages=[
             {
                 "role": "system",
-                "content": "You are a astronaught from the future where civilization has collapsed; visiting earth for the first time. Things in this era are foreign to you.",
+                "content": "Write haikus about the images shown to you. Follow all haiku rules.",
             },
             {
                 "role": "system",
@@ -211,17 +213,15 @@ def check_entity_exists(hash: str, client: datastore.Client):
     return False
 
 
-def convert_to_webp_in_memory(image, quality=90) -> bytes:
-    # Encode the image to WebP in memory
-    result, encoded_image = cv2.imencode(".webp", image, [cv2.IMWRITE_WEBP_QUALITY, quality])
+def convert_to_webp(image: Image.Image, quality=90) -> bytes:
+    image = image.convert("RGB")
+    image_bytes = BytesIO()
+    image.save(image_bytes, "WEBP", quality=quality)
+    return image_bytes.getvalue()
 
-    if not result:
-        raise RuntimeError("could not convert image to webp")
 
-    # If you need to use the binary data, you can convert it to a bytes object
-    image_bytes = encoded_image.tobytes()
-
-    return image_bytes
+def read_image_bytes(data: BytesIO) -> Image.Image:
+    return Image.open(data)
 
 
 def upload(data: bytes, url: str, client: storage.Client, content_type: str) -> storage.Blob:
@@ -251,12 +251,20 @@ def register_image_bg(request: RegisterImageRequest):
         return
 
     image_data = BytesIO(blob.open("rb").read())  # pyright: ignore
+    image = read_image_bytes(image_data)
+    try:
+        image = ImageOps.exif_transpose(image)
+    except:
+        pass
 
-    image = cv2.imdecode(np.frombuffer(image_data.getvalue(), dtype=np.uint8), cv2.IMREAD_COLOR)
-    webp_image = convert_to_webp_in_memory(image, quality=75)
+    webp_image = convert_to_webp(image, quality=75)  # pyright: ignore
     new_filename = request.filename.split(".")[0] + ".webp"
     webp_blob = upload(webp_image, f"gs://{PUBLIC_BUCKET}/{IMAGE_PREFIX}/{new_filename}", client, "image/webp")
-    exif_data = read_exif(image_data)
+    try:
+        exif_data = read_exif(image_data)
+    except:
+        exif_data = {}
+
     b64_image = base64.b64encode(webp_image).decode("utf-8")
     haiku_lines = get_haiku(b64_image)
     data = {
@@ -296,14 +304,15 @@ def build_app() -> FastAPI:
         if item.passphrase != CORRECT_PASSPHRASE:
             raise HTTPException(status_code=403, detail="Incorrect passphrase")
 
-        # auth_request = requests.Request()
-        # signing_credentials = compute_engine.IDTokenCredentials(
-        #     auth_request,
-        #     "",
-        #     service_account_email="storager@taigaishida-217622.iam.gserviceaccount.com",
-        # )
-        #
-        signing_credentials, project = google.auth.default()  # pyright: ignore
+        auth_request = requests.Request()
+        signing_credentials = compute_engine.IDTokenCredentials(
+            auth_request,
+            "",
+            service_account_email="storager@taigaishida-217622.iam.gserviceaccount.com",
+        )
+
+        # For dev uncomment below and commenty above
+        # signing_credentials, project = google.auth.default()  # pyright: ignore
 
         client = get_client()
         blob = client.bucket(PRIVATE_BUCKET).blob(os.path.join("staging", item.filename))
@@ -324,8 +333,20 @@ def build_app() -> FastAPI:
     async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
         ds_client = get_ds_client()
         entities = get_entities("Image", ds_client)
-        gallery = [{"url": e["public_url"]} for e in entities]
+        gallery = [
+            {
+                "url": e["public_url"],
+                "line1": e["haiku"][0],
+                "line2": e["haiku"][1],
+                "line3": e["haiku"][2],
+            }
+            for e in entities
+        ]
         random.shuffle(gallery)
+
+        if len(gallery) == 0:
+            return "Empty Gallery!"
+
         return templates.TemplateResponse(
             "gallery.html",
             {"request": request, "gallery": gallery},

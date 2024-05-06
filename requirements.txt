@@ -5,4 +5,5 @@ google-cloud-storage==2.9.0
 python-multipart==0.0.6
 opencv-python-headless==4.7.0.72
 google-cloud-datastore
+google-cloud-secret-manager
 exifread<3
