@@ -1,28 +1,36 @@
-{% extends "layout.html" %}
-{% block content %}
-<section class="text-white">
-  <img src="{{ gallery[0] }}" class="image-transition object-scale-down h-screen-95 mx-auto pb-10" id="imageDisplay" />
+{% extends "layout.html" %} {% block content %}
+<section class="text-black">
+  <div class="flex flex-row">
+    <div class="w-3/5">
+      <img
+        src="{{ gallery[0].url }}"
+        class="image-transition object-scale-down h-screen-95 mx-auto pb-10"
+        id="imageDisplay"
+      />
+    </div>
+    <div class="px-6 py-4 w-2/5 place-content-center text-center">
+      <p id="line1">{{ gallery[0].line1 }}<br /></p>
+      <p id="line2">{{ gallery[0].line2 }}<br /></p>
+      <p id="line3">{{ gallery[0].line3 }}</p>
+    </div>
+  </div>
 </section>
 
 <script type="text/javascript">
-  const IMAGE_INTERVAL = 3000;
-  const images = {{ gallery|safe }};
+  const IMAGE_INTERVAL = 5000;
+  const gallery = {{ gallery|safe }};
   let currentImageIndex = 0;
 
-  function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-
-  const shuffledImages = shuffleArray(images);
-
   setInterval(() => {
-    currentImageIndex = (currentImageIndex + 1) % shuffledImages.length;
+    currentImageIndex = (currentImageIndex + 1) % gallery.length;
     const imageDisplay = document.getElementById("imageDisplay");
-    imageDisplay.src = shuffledImages[currentImageIndex];
+    const line1 = document.getElementById("line1");
+    const line2 = document.getElementById("line2");
+    const line3 = document.getElementById("line3");
+    imageDisplay.src = gallery[currentImageIndex].url;
+    line1.innerText = gallery[currentImageIndex].line1;
+    line2.innerText = gallery[currentImageIndex].line2;
+    line3.innerText = gallery[currentImageIndex].line3;
   }, IMAGE_INTERVAL);
 </script>
 {% endblock %}
