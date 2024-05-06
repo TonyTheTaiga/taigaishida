@@ -7,3 +7,4 @@ opencv-python-headless==4.7.0.72
 google-cloud-datastore
 google-cloud-secret-manager
 exifread<3
+openai==1.23.4
