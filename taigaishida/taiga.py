@@ -60,13 +60,13 @@ class RegisterImageRequest(BaseModel):
 @lru_cache()
 def get_client() -> storage.Client:
     logger.debug(f"creating client")
-    return storage.Client()
+    return storage.Client(project="taigaishida-217622")
 
 
 @lru_cache()
 def get_ds_client() -> datastore.Client:
     logger.debug(f"creating ds client")
-    return datastore.Client()
+    return datastore.Client(project="taigaishida-217622")
 
 
 @lru_cache()
