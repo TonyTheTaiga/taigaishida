@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from google.auth import compute_engine
 from google.auth.transport import requests
-from google.cloud import datastore, storage
+from google.cloud import datastore, secretmanager, storage
 from google.cloud.datastore.query import PropertyFilter
 from openai import OpenAI
 from PIL import Image, ImageOps
@@ -71,7 +71,15 @@ def get_ds_client() -> datastore.Client:
 
 @lru_cache()
 def get_openai_client() -> OpenAI:
-    return OpenAI()
+    secret_path = os.environ.get("OPENAI_API_KEY")
+    secret_manager = secret_manager_client()
+    api_key = secret_manager.access_secret_version(name=secret_path).payload.data.decode("utf-8")
+    return OpenAI(api_key=api_key)
+
+
+@lru_cache()
+def secret_manager_client() -> secretmanager.SecretManagerServiceClient:
+    return secretmanager.SecretManagerServiceClient()
 
 
 _format_image = lambda base64_image: f"data:image/webp;base64,{base64_image}"
