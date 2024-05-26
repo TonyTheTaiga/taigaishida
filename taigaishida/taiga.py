@@ -71,9 +71,14 @@ def get_ds_client() -> datastore.Client:
 
 @lru_cache()
 def get_openai_client() -> OpenAI:
-    secret_path = os.environ.get("OPENAI_API_KEY")
-    secret_manager = secret_manager_client()
-    api_key = secret_manager.access_secret_version(name=secret_path).payload.data.decode("utf-8")
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY not set")
+
+    if api_key.startswith("projects/"):
+        secret_manager = secret_manager_client()
+        api_key = secret_manager.access_secret_version(name=api_key).payload.data.decode("utf-8")
+
     return OpenAI(api_key=api_key)
 
 

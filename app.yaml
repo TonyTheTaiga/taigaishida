@@ -3,4 +3,4 @@ runtime: python311
 entrypoint: python3 -m uvicorn --factory taigaishida.taiga:build_app --port ${PORT}
 env_variables:
   STORAGE_URL: "https://storage.googleapis.com/taiga-ishida-public/website-images/"
-  OPENAI_API_KEY: "projects/1030250455947/secrets/openai_key/latest"
+  OPENAI_API_KEY: "projects/1030250455947/secrets/openai_key/versions/1"
