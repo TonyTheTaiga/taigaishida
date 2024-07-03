@@ -31,11 +31,10 @@ IMAGE_PREFIX = "webp_images"
 GCS_API_ROOT = "https://storage.googleapis.com"
 CORRECT_PASSPHRASE = "greengrass123"
 STORAGE_SA = "storager@taigaishida-217622.iam.gserviceaccount.com"
+IMAGE_KIND = "Image"
 
 logger = logging.getLogger("ui")
 bg_logger = logging.getLogger("bg")
-
-IMAGE_KIND = "Image"
 
 
 class Item(BaseModel):
