@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import List, Optional
 
 import exifread
 import google.auth
@@ -36,15 +35,6 @@ logger = logging.getLogger("ui")
 bg_logger = logging.getLogger("bg")
 
 IMAGE_KIND = "Image"
-
-
-class GalleryItem(BaseModel):
-    id: str
-    name: Optional[str] = "???"
-
-    @property
-    def url(self) -> str:
-        return os.path.join(GCS_API_ROOT, PUBLIC_BUCKET, self.id)
 
 
 class Item(BaseModel):
@@ -87,9 +77,6 @@ def secret_manager_client() -> secretmanager.SecretManagerServiceClient:
     return secretmanager.SecretManagerServiceClient()
 
 
-_format_image = lambda base64_image: f"data:image/webp;base64,{base64_image}"
-
-
 def get_haiku(b64_image: str):
     client = get_openai_client()
     response = client.chat.completions.create(
@@ -110,7 +97,7 @@ def get_haiku(b64_image: str):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": _format_image(b64_image),
+                            "url": f"data:image/webp;base64,{b64_image}",
                         },
                     },
                 ],
@@ -135,21 +122,20 @@ def get_haiku(b64_image: str):
     return list(message.values())
 
 
-def get_gallery_items() -> List[GalleryItem]:
-    client = get_client()
-    blobs = client.list_blobs(PUBLIC_BUCKET, prefix=IMAGE_PREFIX)
-    return [
-        GalleryItem(id=blob.name, name=blob.name.split("/")[-1])
-        for blob in blobs
-        if blob.name.endswith(".webp")
-        or blob.name.endswith(".jpg")
-        or blob.name.endswith(".png")
-        or blob.name.endswith(".jpeg")
-        or blob.name.endswith(".WEBP")
-        or blob.name.endswith(".JPG")
-        or blob.name.endswith(".PNG")
-        or blob.name.endswith(".JPEG")
+def get_gallery_data():
+    ds_client = get_ds_client()
+    entities = get_entities("Image", ds_client)
+    gallery = [
+        {
+            "url": e["public_url"],
+            "line1": e["haiku"][0],
+            "line2": e["haiku"][1],
+            "line3": e["haiku"][2],
+        }
+        for e in entities
     ]
+    random.shuffle(gallery)
+    return gallery
 
 
 def dms_to_decimal(dms):
@@ -343,20 +329,7 @@ def build_app() -> FastAPI:
 
     @app.get("/gallery", response_class=HTMLResponse)
     @app.get("/", response_class=HTMLResponse)
-    async def gallery(request: Request, gallery_items=Depends(get_gallery_items)):
-        ds_client = get_ds_client()
-        entities = get_entities("Image", ds_client)
-        gallery = [
-            {
-                "url": e["public_url"],
-                "line1": e["haiku"][0],
-                "line2": e["haiku"][1],
-                "line3": e["haiku"][2],
-            }
-            for e in entities
-        ]
-        random.shuffle(gallery)
-
+    async def gallery(request: Request, gallery=Depends(get_gallery_data)):
         if len(gallery) == 0:
             return "Empty Gallery!"
 
