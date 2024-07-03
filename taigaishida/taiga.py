@@ -30,6 +30,7 @@ PRIVATE_BUCKET = "taiga-ishida-private"
 IMAGE_PREFIX = "webp_images"
 GCS_API_ROOT = "https://storage.googleapis.com"
 CORRECT_PASSPHRASE = "greengrass123"
+STORAGE_SA = "storager@taigaishida-217622.iam.gserviceaccount.com"
 
 logger = logging.getLogger("ui")
 bg_logger = logging.getLogger("bg")
@@ -307,7 +308,7 @@ def build_app() -> FastAPI:
         signing_credentials = compute_engine.IDTokenCredentials(
             auth_request,
             "",
-            service_account_email="storager@taigaishida-217622.iam.gserviceaccount.com",
+            service_account_email=STORAGE_SA,
         )
 
         # For dev uncomment below and commenty above
@@ -315,8 +316,6 @@ def build_app() -> FastAPI:
 
         client = get_client()
         blob = client.bucket(PRIVATE_BUCKET).blob(os.path.join("staging", item.filename))
-
-        # Generate a signed URL for uploading a file
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=5),
