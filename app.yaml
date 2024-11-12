@@ -5,8 +5,8 @@ env_variables:
   STORAGE_URL: "https://storage.googleapis.com/taiga-ishida-public/website-images/"
   OPENAI_API_KEY: "projects/1030250455947/secrets/openai_key/versions/1"
 
+instance_class: F4
 automatic_scaling:
   target_cpu_utilization: 0.65
   min_instances: 1
   max_instances: 5
-  instance_class: F4
