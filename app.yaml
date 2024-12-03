@@ -8,4 +8,4 @@ env_variables:
 instance_class: B2
 basic_scaling:
   max_instances: 1
-  idle_timeout: 15m
+  idle_timeout: 5m
