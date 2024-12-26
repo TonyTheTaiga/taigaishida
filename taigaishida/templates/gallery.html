@@ -1,36 +1,68 @@
-{% extends "layout.html" %} {% block content %}
-<section class="text-black">
-  <div class="flex flex-row">
-    <div class="w-3/5">
-      <img
-        src="{{ gallery[0].url }}"
-        class="image-transition object-scale-down h-screen-95 mx-auto pb-10"
-        id="imageDisplay"
-      />
+{% extends "layout.html" %}
+{% block content %}
+<section class="min-h-screen">
+  <div class="max-w-6xl mx-auto p-8">
+    <div class="divide-y divide-gray-100">
+      {% for item in gallery %}
+        <div
+          class="grid grid-cols-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+          data-image="{{ item.url }}"
+          onmousemove="handleMouseMove(event, this)"
+          onmouseleave="hidePreview()"
+        >
+          <div class="font-mono text-sm text-gray-500 pr-4">
+            IMG_{{ '%04d' | format(loop.index) }}.jpg
+          </div>
+          <div class="font-serif pr-4">
+            {{ item.line1 }}
+          </div>
+          <div class="font-serif pr-4">
+            {{ item.line2 }}
+          </div>
+          <div class="font-serif">
+            {{ item.line3 }}
+          </div>
+        </div>
+      {% endfor %}
     </div>
-    <div class="px-6 py-4 w-2/5 place-content-center text-center">
-      <p id="line1">{{ gallery[0].line1 }}<br /></p>
-      <p id="line2">{{ gallery[0].line2 }}<br /></p>
-      <p id="line3">{{ gallery[0].line3 }}</p>
-    </div>
+  </div>
+
+  <!-- Image Preview -->
+  <div 
+    id="preview"
+    class="fixed pointer-events-none shadow-lg hidden"
+    style="z-index: 50;"
+  >
+    <img 
+      id="previewImage"
+      alt="Preview"
+      class="w-64 h-48 object-cover"
+    />
   </div>
 </section>
 
 <script type="text/javascript">
-  const IMAGE_INTERVAL = 5000;
-  const gallery = {{ gallery|safe }};
-  let currentImageIndex = 0;
+  const preview = document.getElementById('preview');
+  const previewImage = document.getElementById('previewImage');
 
-  setInterval(() => {
-    currentImageIndex = (currentImageIndex + 1) % gallery.length;
-    const imageDisplay = document.getElementById("imageDisplay");
-    const line1 = document.getElementById("line1");
-    const line2 = document.getElementById("line2");
-    const line3 = document.getElementById("line3");
-    imageDisplay.src = gallery[currentImageIndex].url;
-    line1.innerText = gallery[currentImageIndex].line1;
-    line2.innerText = gallery[currentImageIndex].line2;
-    line3.innerText = gallery[currentImageIndex].line3;
-  }, IMAGE_INTERVAL);
+  function handleMouseMove(event, element) {
+    const imageUrl = element.dataset.image;
+    const x = event.clientX + 20;
+    const y = event.clientY - 100;
+    
+    // Keep preview within viewport
+    const maxX = window.innerWidth - 256;
+    const maxY = window.innerHeight - 192;
+    
+    preview.style.left = Math.min(x, maxX) + 'px';
+    preview.style.top = Math.max(20, Math.min(y, maxY)) + 'px';
+    preview.classList.remove('hidden');
+    
+    previewImage.src = imageUrl;
+  }
+
+  function hidePreview() {
+    preview.classList.add('hidden');
+  }
 </script>
 {% endblock %}
