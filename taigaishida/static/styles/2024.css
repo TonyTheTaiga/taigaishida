@@ -582,6 +582,10 @@ video {
   pointer-events: none;
 }
 
+.visible {
+  visibility: visible;
+}
+
 .static {
   position: static;
 }
@@ -706,6 +710,10 @@ video {
 
 .min-h-screen {
   min-height: 100vh;
+}
+
+.min-h-\[200px\] {
+  min-height: 200px;
 }
 
 .w-5 {
@@ -1004,6 +1012,11 @@ video {
   padding-bottom: 8rem;
 }
 
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
 .pr-4 {
   padding-right: 1rem;
 }
@@ -1030,6 +1043,10 @@ video {
 
 .pl-32 {
   padding-left: 8rem;
+}
+
+.pl-48 {
+  padding-left: 12rem;
 }
 
 .font-main {
@@ -1129,6 +1146,10 @@ video {
 
 .text-black\/70 {
   color: rgb(0 0 0 / 0.7);
+}
+
+.text-black\/60 {
+  color: rgb(0 0 0 / 0.6);
 }
 
 .opacity-0 {

@@ -5,7 +5,7 @@
     <div class="space-y-32">
       {% for item in gallery %}
         <div
-          class="group grid grid-cols-[120px_1fr] items-start"
+          class="group grid grid-cols-[120px_1fr] min-h-[200px]"
           data-image="{{ item.url }}"
           data-index="{{ loop.index0 }}"
           onmousemove="handleMouseMove(event, this)"
@@ -20,21 +20,16 @@
             </div>
           </div>
 
-          <!-- Haiku lines with artistic arrangement -->
-          <div class="relative cursor-pointer pl-12">
-            <div class="space-y-8">
-              <!-- First line - largest, boldest -->
+          <!-- Haiku lines with cascading arrangement -->
+          <div class="relative cursor-pointer pl-12 flex items-center">
+            <div class="space-y-6">
               <div class="font-serif text-4xl text-black/70 transition-all duration-500">
                 {{ item.line1 }}
               </div>
-              
-              <!-- Second line - offset, medium size -->
-              <div class="font-serif text-2xl pl-16 text-black/50 transition-all duration-500">
+              <div class="font-serif text-4xl pl-24 text-black/60 transition-all duration-500">
                 {{ item.line2 }}
               </div>
-              
-              <!-- Third line - most offset, smallest -->
-              <div class="font-serif text-xl pl-32 text-black/40 transition-all duration-500">
+              <div class="font-serif text-4xl pl-48 text-black/50 transition-all duration-500">
                 {{ item.line3 }}
               </div>
             </div>
@@ -57,7 +52,8 @@
       <img 
         id="previewImage"
         alt="Preview"
-        class="w-[500px] h-[340px] object-cover filter contrast-75 transition-all duration-500"
+        class="object-cover filter contrast-75 transition-all duration-500"
+        onload="handleImageLoad(this)"
       />
       <div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent mix-blend-overlay"></div>
     </div>
@@ -68,20 +64,53 @@
   const preview = document.getElementById('preview');
   const previewImage = document.getElementById('previewImage');
   let currentHoveredElement = null;
+  let lastMouseEvent = null;
 
-  function handleMouseMove(event, element) {
-    const imageUrl = element.dataset.image;
+  function handleImageLoad(img) {
+    const isVertical = img.naturalHeight > img.naturalWidth;
+    
+    if (isVertical) {
+      img.style.width = '340px';
+      img.style.height = '500px';
+    } else {
+      img.style.width = '500px';
+      img.style.height = '340px';
+    }
+
+    // Position preview after size is determined
+    if (lastMouseEvent) {
+      positionPreview(lastMouseEvent);
+    }
+    
+    preview.classList.remove('hidden');
+  }
+
+  function positionPreview(event) {
     const x = event.clientX + 20;
     const y = event.clientY - 100;
     
-    const maxX = window.innerWidth - 500;
-    const maxY = window.innerHeight - 340;
+    // Get current preview dimensions
+    const width = previewImage.offsetWidth;
+    const height = previewImage.offsetHeight;
+    
+    const maxX = window.innerWidth - width - 20;
+    const maxY = window.innerHeight - height - 20;
     
     preview.style.left = Math.min(x, maxX) + 'px';
     preview.style.top = Math.max(20, Math.min(y, maxY)) + 'px';
-    preview.classList.remove('hidden');
+  }
+
+  function handleMouseMove(event, element) {
+    lastMouseEvent = event;
+    const imageUrl = element.dataset.image;
     
-    previewImage.src = imageUrl;
+    // Only load new image if URL changed
+    if (previewImage.src !== imageUrl) {
+      preview.classList.add('hidden');
+      previewImage.src = imageUrl;
+    } else {
+      positionPreview(event);
+    }
 
     if (currentHoveredElement !== element) {
       if (currentHoveredElement) {
@@ -96,13 +125,14 @@
     preview.classList.add('hidden');
     updateHoverState(element, false);
     currentHoveredElement = null;
+    lastMouseEvent = null;
   }
 
   function updateHoverState(element, isHovered) {
     const lines = element.querySelectorAll('.font-serif');
     lines[0].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.7)';
-    lines[1].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.5)';
-    lines[2].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.4)';
+    lines[1].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.6)';
+    lines[2].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.5)';
 
     const lineIndicator = element.querySelector('.line-indicator');
     lineIndicator.style.opacity = isHovered ? '1' : '0';
