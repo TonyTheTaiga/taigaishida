@@ -1,47 +1,46 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="min-h-screen bg-white selection:bg-black selection:text-white">
-  <div class="max-w-7xl mx-auto px-16 py-24">
-    <div class="space-y-16">
+<section class="min-h-screen selection:bg-black selection:text-white">
+  <div class="max-w-[1400px] mx-auto px-24 py-32">
+    <div class="space-y-32">
       {% for item in gallery %}
         <div
-          class="group relative flex items-center"
+          class="group grid grid-cols-[120px_1fr] items-start"
           data-image="{{ item.url }}"
           data-index="{{ loop.index0 }}"
           onmousemove="handleMouseMove(event, this)"
           onmouseleave="handleMouseLeave(this)"
         >
-          <!-- Filename with rotation container -->
-          <div class="w-12 mr-12 relative">
-            <div class="absolute -left-2 top-1/2 -translate-y-1/2 -rotate-90 origin-center whitespace-nowrap">
-              <div class="font-mono text-[10px] tracking-widest text-black/30 uppercase">
+          <!-- Filename column with centered rotation container -->
+          <div class="relative h-full flex items-center justify-center">
+            <div class="-rotate-90 whitespace-nowrap origin-center translate-y-1/2">
+              <div class="font-mono text-xs tracking-widest text-black/30 uppercase">
                 IMG_{{ '%04d' | format(loop.index) }}.jpg
               </div>
             </div>
           </div>
 
           <!-- Haiku lines with artistic arrangement -->
-          <div class="flex-1 cursor-pointer relative">
-            <div class="flex items-baseline gap-12">
-              <!-- First line -->
-              <div class="font-serif text-2xl text-black/70 transition-all duration-500 min-w-[200px]">
+          <div class="relative cursor-pointer pl-12">
+            <div class="space-y-8">
+              <!-- First line - largest, boldest -->
+              <div class="font-serif text-4xl text-black/70 transition-all duration-500">
                 {{ item.line1 }}
               </div>
               
-              <!-- Second line -->
-              <div class="font-serif text-xl text-black/50 transition-all duration-500 min-w-[200px]">
+              <!-- Second line - offset, medium size -->
+              <div class="font-serif text-2xl pl-16 text-black/50 transition-all duration-500">
                 {{ item.line2 }}
               </div>
               
-              <!-- Third line -->
-              <div class="font-serif text-lg text-black/40 transition-all duration-500 min-w-[200px]">
+              <!-- Third line - most offset, smallest -->
+              <div class="font-serif text-xl pl-32 text-black/40 transition-all duration-500">
                 {{ item.line3 }}
               </div>
             </div>
 
             <!-- Subtle line indicator -->
-            <div class="absolute left-0 -top-3 w-full h-[1px] bg-black/5 opacity-0 transition-all duration-500 line-indicator"></div>
-            <div class="absolute left-0 -bottom-3 w-full h-[1px] bg-black/5 opacity-0 transition-all duration-500 line-indicator"></div>
+            <div class="absolute left-0 top-0 w-1 h-full bg-black/5 opacity-0 transition-all duration-500 line-indicator"></div>
           </div>
         </div>
       {% endfor %}
@@ -58,7 +57,7 @@
       <img 
         id="previewImage"
         alt="Preview"
-        class="w-96 h-64 object-cover filter contrast-75 transition-all duration-500"
+        class="w-[500px] h-[340px] object-cover filter contrast-75 transition-all duration-500"
       />
       <div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent mix-blend-overlay"></div>
     </div>
@@ -75,8 +74,8 @@
     const x = event.clientX + 20;
     const y = event.clientY - 100;
     
-    const maxX = window.innerWidth - 384;
-    const maxY = window.innerHeight - 256;
+    const maxX = window.innerWidth - 500;
+    const maxY = window.innerHeight - 340;
     
     preview.style.left = Math.min(x, maxX) + 'px';
     preview.style.top = Math.max(20, Math.min(y, maxY)) + 'px';
@@ -105,10 +104,8 @@
     lines[1].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.5)';
     lines[2].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.4)';
 
-    const lineIndicators = element.querySelectorAll('.line-indicator');
-    lineIndicators.forEach(indicator => {
-      indicator.style.opacity = isHovered ? '1' : '0';
-    });
+    const lineIndicator = element.querySelector('.line-indicator');
+    lineIndicator.style.opacity = isHovered ? '1' : '0';
   }
 </script>
 {% endblock %}
