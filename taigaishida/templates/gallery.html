@@ -1,26 +1,47 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="min-h-screen">
-  <div class="max-w-6xl mx-auto p-8">
-    <div class="divide-y divide-gray-100">
+<section class="min-h-screen bg-white selection:bg-black selection:text-white">
+  <div class="max-w-7xl mx-auto px-16 py-24">
+    <div class="space-y-16">
       {% for item in gallery %}
         <div
-          class="grid grid-cols-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+          class="group relative flex items-center"
           data-image="{{ item.url }}"
+          data-index="{{ loop.index0 }}"
           onmousemove="handleMouseMove(event, this)"
-          onmouseleave="hidePreview()"
+          onmouseleave="handleMouseLeave(this)"
         >
-          <div class="font-mono text-sm text-gray-500 pr-4">
-            IMG_{{ '%04d' | format(loop.index) }}.jpg
+          <!-- Filename with rotation container -->
+          <div class="w-12 mr-12 relative">
+            <div class="absolute -left-2 top-1/2 -translate-y-1/2 -rotate-90 origin-center whitespace-nowrap">
+              <div class="font-mono text-[10px] tracking-widest text-black/30 uppercase">
+                IMG_{{ '%04d' | format(loop.index) }}.jpg
+              </div>
+            </div>
           </div>
-          <div class="font-serif pr-4">
-            {{ item.line1 }}
-          </div>
-          <div class="font-serif pr-4">
-            {{ item.line2 }}
-          </div>
-          <div class="font-serif">
-            {{ item.line3 }}
+
+          <!-- Haiku lines with artistic arrangement -->
+          <div class="flex-1 cursor-pointer relative">
+            <div class="flex items-baseline gap-12">
+              <!-- First line -->
+              <div class="font-serif text-2xl text-black/70 transition-all duration-500 min-w-[200px]">
+                {{ item.line1 }}
+              </div>
+              
+              <!-- Second line -->
+              <div class="font-serif text-xl text-black/50 transition-all duration-500 min-w-[200px]">
+                {{ item.line2 }}
+              </div>
+              
+              <!-- Third line -->
+              <div class="font-serif text-lg text-black/40 transition-all duration-500 min-w-[200px]">
+                {{ item.line3 }}
+              </div>
+            </div>
+
+            <!-- Subtle line indicator -->
+            <div class="absolute left-0 -top-3 w-full h-[1px] bg-black/5 opacity-0 transition-all duration-500 line-indicator"></div>
+            <div class="absolute left-0 -bottom-3 w-full h-[1px] bg-black/5 opacity-0 transition-all duration-500 line-indicator"></div>
           </div>
         </div>
       {% endfor %}
@@ -30,39 +51,64 @@
   <!-- Image Preview -->
   <div 
     id="preview"
-    class="fixed pointer-events-none shadow-lg hidden"
+    class="fixed pointer-events-none hidden"
     style="z-index: 50;"
   >
-    <img 
-      id="previewImage"
-      alt="Preview"
-      class="w-64 h-48 object-cover"
-    />
+    <div class="relative overflow-hidden">
+      <img 
+        id="previewImage"
+        alt="Preview"
+        class="w-96 h-64 object-cover filter contrast-75 transition-all duration-500"
+      />
+      <div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent mix-blend-overlay"></div>
+    </div>
   </div>
 </section>
 
 <script type="text/javascript">
   const preview = document.getElementById('preview');
   const previewImage = document.getElementById('previewImage');
+  let currentHoveredElement = null;
 
   function handleMouseMove(event, element) {
     const imageUrl = element.dataset.image;
     const x = event.clientX + 20;
     const y = event.clientY - 100;
     
-    // Keep preview within viewport
-    const maxX = window.innerWidth - 256;
-    const maxY = window.innerHeight - 192;
+    const maxX = window.innerWidth - 384;
+    const maxY = window.innerHeight - 256;
     
     preview.style.left = Math.min(x, maxX) + 'px';
     preview.style.top = Math.max(20, Math.min(y, maxY)) + 'px';
     preview.classList.remove('hidden');
     
     previewImage.src = imageUrl;
+
+    if (currentHoveredElement !== element) {
+      if (currentHoveredElement) {
+        updateHoverState(currentHoveredElement, false);
+      }
+      updateHoverState(element, true);
+      currentHoveredElement = element;
+    }
   }
 
-  function hidePreview() {
+  function handleMouseLeave(element) {
     preview.classList.add('hidden');
+    updateHoverState(element, false);
+    currentHoveredElement = null;
+  }
+
+  function updateHoverState(element, isHovered) {
+    const lines = element.querySelectorAll('.font-serif');
+    lines[0].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.7)';
+    lines[1].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.5)';
+    lines[2].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.4)';
+
+    const lineIndicators = element.querySelectorAll('.line-indicator');
+    lineIndicators.forEach(indicator => {
+      indicator.style.opacity = isHovered ? '1' : '0';
+    });
   }
 </script>
 {% endblock %}
