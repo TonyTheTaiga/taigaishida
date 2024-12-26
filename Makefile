@@ -1,8 +1,8 @@
 dev-css:
-	npx tailwindcss -i input.css -o ./taigaishida/static/styles/2024.css --watch
+	npx tailwindcss -i input.css -o ./taigaishida/static/styles/2025.css --watch
 
 build-css:
-	npx tailwindcss -i input.css -o taigaishida/static/styles/2024.css --minify
+	npx tailwindcss -i input.css -o taigaishida/static/styles/2025.css --minify
 
 lint:
 	black -l 120 .
