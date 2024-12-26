@@ -638,6 +638,10 @@ video {
   top: -0.75rem;
 }
 
+.z-10 {
+  z-index: 10;
+}
+
 .mx-5 {
   margin-left: 1.25rem;
   margin-right: 1.25rem;

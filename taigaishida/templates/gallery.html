@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="min-h-screen selection:bg-black selection:text-white">
+<section class="min-h-screen bg-white selection:bg-black selection:text-white">
+  {# Main content remains the same #}
   <div class="max-w-[1400px] mx-auto px-24 py-32">
     <div class="space-y-32">
       {% for item in gallery %}
@@ -8,6 +9,7 @@
           class="group grid grid-cols-[120px_1fr] min-h-[200px]"
           data-image="{{ item.url }}"
           data-index="{{ loop.index0 }}"
+          onmouseenter="preloadImage(this)"
           onmousemove="handleMouseMove(event, this)"
           onmouseleave="handleMouseLeave(this)"
         >
@@ -42,18 +44,19 @@
     </div>
   </div>
 
-  <!-- Image Preview -->
+  <!-- Image Preview with Loading State -->
   <div 
     id="preview"
     class="fixed pointer-events-none hidden"
     style="z-index: 50;"
   >
     <div class="relative overflow-hidden">
+      <!-- Loading indicator -->
+      <div id="previewLoading" class="hidden absolute inset-0 bg-black/5 z-10"></div>
       <img 
         id="previewImage"
         alt="Preview"
         class="object-cover filter contrast-75 transition-all duration-500"
-        onload="handleImageLoad(this)"
       />
       <div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent mix-blend-overlay"></div>
     </div>
@@ -63,10 +66,51 @@
 <script type="text/javascript">
   const preview = document.getElementById('preview');
   const previewImage = document.getElementById('previewImage');
+  const previewLoading = document.getElementById('previewLoading');
   let currentHoveredElement = null;
   let lastMouseEvent = null;
+  let imageCache = new Map();
+  let loadingTimeout = null;
+
+  // Preload image when mouse enters the row
+  function preloadImage(element) {
+    const imageUrl = element.dataset.image;
+    if (!imageCache.has(imageUrl)) {
+      const img = new Image();
+      img.onload = function() {
+        imageCache.set(imageUrl, {
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          loaded: true
+        });
+      };
+      img.onerror = function() {
+        imageCache.set(imageUrl, { loaded: false });
+      };
+      imageCache.set(imageUrl, { loaded: false });
+      img.src = imageUrl;
+    }
+  }
+
+  function showLoadingState() {
+    previewLoading.classList.remove('hidden');
+    // Hide preview if loading takes too long
+    loadingTimeout = setTimeout(() => {
+      preview.classList.add('hidden');
+    }, 1000);
+  }
+
+  function hideLoadingState() {
+    previewLoading.classList.add('hidden');
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      loadingTimeout = null;
+    }
+  }
 
   function handleImageLoad(img) {
+    hideLoadingState();
+    
     const isVertical = img.naturalHeight > img.naturalWidth;
     
     if (isVertical) {
@@ -77,19 +121,18 @@
       img.style.height = '340px';
     }
 
-    // Position preview after size is determined
     if (lastMouseEvent) {
       positionPreview(lastMouseEvent);
+      preview.classList.remove('hidden');
     }
-    
-    preview.classList.remove('hidden');
   }
 
   function positionPreview(event) {
+    if (!previewImage.complete) return;
+
     const x = event.clientX + 20;
     const y = event.clientY - 100;
     
-    // Get current preview dimensions
     const width = previewImage.offsetWidth;
     const height = previewImage.offsetHeight;
     
@@ -100,16 +143,28 @@
     preview.style.top = Math.max(20, Math.min(y, maxY)) + 'px';
   }
 
+  // Set up image load handling
+  previewImage.onload = function() {
+    handleImageLoad(this);
+  };
+
+  previewImage.onerror = function() {
+    hideLoadingState();
+    preview.classList.add('hidden');
+  };
+
   function handleMouseMove(event, element) {
     lastMouseEvent = event;
     const imageUrl = element.dataset.image;
     
-    // Only load new image if URL changed
+    // Handle image loading and caching
     if (previewImage.src !== imageUrl) {
+      showLoadingState();
       preview.classList.add('hidden');
       previewImage.src = imageUrl;
-    } else {
+    } else if (previewImage.complete) {
       positionPreview(event);
+      preview.classList.remove('hidden');
     }
 
     if (currentHoveredElement !== element) {
@@ -123,6 +178,7 @@
 
   function handleMouseLeave(element) {
     preview.classList.add('hidden');
+    hideLoadingState();
     updateHoverState(element, false);
     currentHoveredElement = null;
     lastMouseEvent = null;
@@ -137,5 +193,13 @@
     const lineIndicator = element.querySelector('.line-indicator');
     lineIndicator.style.opacity = isHovered ? '1' : '0';
   }
+
+  // Clean up on page unload
+  window.addEventListener('unload', () => {
+    imageCache.clear();
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+    }
+  });
 </script>
 {% endblock %}
