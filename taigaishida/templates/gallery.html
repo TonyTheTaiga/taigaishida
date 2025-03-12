@@ -16,7 +16,7 @@
           <!-- Filename column with centered rotation container -->
           <div class="relative h-full flex items-center justify-center">
             <div class="-rotate-90 whitespace-nowrap origin-center translate-y-1/2">
-              <div class="font-mono text-xs tracking-widest text-black/30 uppercase">
+              <div class="text-xs tracking-widest text-black/30 uppercase">
                 IMG_{{ '%04d' | format(loop.index) }}.jpg
               </div>
             </div>
@@ -25,13 +25,13 @@
           <!-- Haiku lines with cascading arrangement -->
           <div class="relative cursor-pointer pl-12 flex items-center">
             <div class="space-y-6">
-              <div class="font-serif text-4xl text-black/70 transition-all duration-500">
+              <div data-haiku="line-1" class="text-4xl text-black/70 transition-all duration-500">
                 {{ item.line1 }}
               </div>
-              <div class="font-serif text-4xl pl-24 text-black/60 transition-all duration-500">
+              <div data-haiku="line-2" class="text-4xl pl-24 text-black/60 transition-all duration-500">
                 {{ item.line2 }}
               </div>
-              <div class="font-serif text-4xl pl-48 text-black/50 transition-all duration-500">
+              <div data-haiku="line-3" class="text-4xl pl-48 text-black/50 transition-all duration-500">
                 {{ item.line3 }}
               </div>
             </div>
@@ -185,7 +185,7 @@
   }
 
   function updateHoverState(element, isHovered) {
-    const lines = element.querySelectorAll('.font-serif');
+    const lines = element.querySelectorAll('[data-haiku]');
     lines[0].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.7)';
     lines[1].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.6)';
     lines[2].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.5)';
