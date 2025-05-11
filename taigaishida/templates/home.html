@@ -1,6 +1,6 @@
 {% extends "layout.html" %} {% block content %}
 <div class="h-screen grid grid-cols-1">
-    <main
+    <div
         class="overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
     >
         {% for item in gallery %}
@@ -13,7 +13,7 @@
             </div>
         </div>
         {% endfor %}
-    </main>
+    </div>
     <aside class="p-8 text-gray-500">
         <b>Taiga Ishida</b> / 30<br />
         <b>Brooklyn</b> / NY<br />
