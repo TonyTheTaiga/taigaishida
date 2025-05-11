@@ -1,5 +1,11 @@
 {% extends "layout.html" %} {% block content %}
 <div class="sm:h-dvh md:h-screen lg:h-screen grid grid-cols-1">
+    <aside class="p-4 text-gray-500">
+        <b>Taiga Ishida</b> / 30<br />
+        <b>Brooklyn</b> / NY<br />
+        <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a><br />
+        <a href="https://github.com/TonyTheTaiga" target="_blank">github</a >
+    </aside>
     <main
         class="overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
     >
@@ -14,11 +20,5 @@
         </div>
         {% endfor %}
     </main>
-    <aside class="p-4 text-gray-500">
-        <b>Taiga Ishida</b> / 30<br />
-        <b>Brooklyn</b> / NY<br />
-        <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a><br />
-        <a href="https://github.com/TonyTheTaiga" target="_blank">github</a >
-    </aside>
 </div>
 {% endblock %}
