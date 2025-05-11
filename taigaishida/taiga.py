@@ -47,6 +47,43 @@ class RegisterImageRequest(BaseModel):
     filename: str
 
 
+class GalleryItem(BaseModel):
+    url: str
+    haiku: list[str]
+    line1: str
+    line2: str
+    line3: str
+    created: str | None = None
+    latlong: str | None = None
+    model: str | None = None
+    exposure_time: str | None = None
+    f_number: str | None = None
+    iso: str | None = None
+    focal_length: str | None = None
+    focal_length_35mm: str | None = None
+    md5: str | None = None
+
+    @classmethod
+    def from_entity(cls, entity: dict) -> "GalleryItem":
+        haiku = entity.get('haiku', ['', '', ''])
+        return cls(
+            url=entity.get('public_url'),
+            haiku=haiku,
+            line1=haiku[0],
+            line2=haiku[1],
+            line3=haiku[2],
+            created=entity.get('created'),
+            latlong=entity.get('latlong'),
+            model=entity.get('Model'),
+            exposure_time=entity.get('ExposureTime'),
+            f_number=entity.get('FNumber'),
+            iso=entity.get('ISOSpeedRatings'),
+            focal_length=entity.get('FocalLength'),
+            focal_length_35mm=entity.get('FocalLengthIn35mmFilm'),
+            md5=entity.get('md5')
+        )
+
+
 @lru_cache()
 def get_client() -> storage.Client:
     logger.debug(f"creating client")
@@ -121,22 +158,12 @@ def get_haiku(b64_image: str):
 
     return list(message.values())
 
-
 def get_gallery_data():
     ds_client = get_ds_client()
     entities = get_entities("Image", ds_client)
-    gallery = [
-        {
-            "url": e["public_url"],
-            "line1": e["haiku"][0],
-            "line2": e["haiku"][1],
-            "line3": e["haiku"][2],
-        }
-        for e in entities
-    ]
+    gallery = [GalleryItem.from_entity(e) for e in entities]
     random.shuffle(gallery)
     return gallery
-
 
 def dms_to_decimal(dms):
     """
