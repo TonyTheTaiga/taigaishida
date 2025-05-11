@@ -570,8 +570,20 @@ video {
   left: 50%;
 }
 
+.right-4 {
+  right: 1rem;
+}
+
 .top-1\/2 {
   top: 50%;
+}
+
+.top-4 {
+  top: 1rem;
+}
+
+.z-10 {
+  z-index: 10;
 }
 
 .mx-5 {
@@ -804,18 +816,10 @@ video {
   .md\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .md\:grid-cols-\[300px_1fr\] {
-    grid-template-columns: 300px 1fr;
-  }
 }
 
 @media (min-width: 1024px) {
   .lg\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .lg\:grid-cols-\[300px_1fr\] {
-    grid-template-columns: 300px 1fr;
   }
 }

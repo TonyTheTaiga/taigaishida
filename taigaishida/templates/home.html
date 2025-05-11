@@ -4,11 +4,13 @@
         class="overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
     >
         {% for item in gallery %}
-        <div class="p-4">
+        <div class="p-4 relative">
             <img src="{{item.url}}" class="object-contain" />
-            <span>{{ item.line1 }}</span><br />
-            <span>{{ item.line2 }}</span><br />
-            <span>{{ item.line3 }}</span>
+            <div class="absolute top-4 right-4 z-10">
+                <span>{{ item.line1 }}</span><br />
+                <span>{{ item.line2 }}</span><br />
+                <span>{{ item.line3 }}</span>
+            </div>
         </div>
         {% endfor %}
     </main>
