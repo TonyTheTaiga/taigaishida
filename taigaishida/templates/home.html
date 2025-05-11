@@ -1,210 +1,44 @@
-{% extends "layout.html" %}
-{% block content %}
-<div class="h-screen relative">
-  <div class="fixed bottom-0 left-0 w-1/3 h-screen bg-white z-10">
-    <div class="absolute bottom-0 left-0 p-8 text-gray-500">
-      <section>
-        <b>Taiga Ishida</b> / 30&nbsp;
-        <br />
-        <b>Brooklyn</b> / NY&nbsp;
-        <br />
-        <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a>
-        <br />
-        <a href="https://github.com/TonyTheTaiga" target="_">github</a>
-        <br />
-        <a href="https://www.linkedin.com/in/taigaishida/" target="_">linkedin</a>
-      </section>
-    </div>
-  </div>
-
-  <div class="w-2/3 ml-auto h-screen overflow-y-auto">
-    <div class="max-w-[1400px] mx-auto px-24 py-32">
-      <div class="space-y-32">
+{% extends "layout.html" %} {% block content %}
+<div class="h-screen grid grid-cols-1">
+    <main
+        class="overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
+    >
         {% for item in gallery %}
-          <div
-            class="group grid grid-cols-[120px_1fr] min-h-[200px]"
-            data-image="{{ item.url }}"
-            data-index="{{ loop.index0 }}"
-            onmouseenter="preloadImage(this)"
-            onmousemove="handleMouseMove(event, this)"
-            onmouseleave="handleMouseLeave(this)"
-          >
-            <div class="relative h-full flex items-center justify-center">
-              <div class="-rotate-90 whitespace-nowrap origin-center translate-y-1/2">
-                <div class="text-xs tracking-widest text-black/30 uppercase">
-                  IMG_{{ '%04d' | format(loop.index) }}.jpg
-                </div>
-              </div>
+        <div class="p-4 relative">
+            <img src="{{item.url}}" class="object-contain" />
+            <div class="absolute top-4 right-4 z-10">
+                <span>{{ item.line1 }}</span><br />
+                <span>{{ item.line2 }}</span><br />
+                <span>{{ item.line3 }}</span>
             </div>
-
-            <div class="relative cursor-pointer pl-12 flex items-center">
-              <div class="space-y-6">
-                <div data-haiku="line-1" class="text-4xl text-black/70 transition-all duration-500">
-                  {{ item.line1 }}
-                </div>
-                <div data-haiku="line-2" class="text-4xl pl-24 text-black/60 transition-all duration-500">
-                  {{ item.line2 }}
-                </div>
-                <div data-haiku="line-3" class="text-4xl pl-48 text-black/50 transition-all duration-500">
-                  {{ item.line3 }}
-                </div>
-              </div>
-
-              <div class="absolute left-0 top-0 w-1 h-full bg-black/5 opacity-0 transition-all duration-500 line-indicator"></div>
-            </div>
-          </div>
+        </div>
         {% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <div 
-    id="preview"
-    class="fixed pointer-events-none hidden"
-    style="z-index: 50;"
-  >
-    <div class="relative overflow-hidden">
-      <div id="previewLoading" class="hidden absolute inset-0 bg-black/5 z-10"></div>
-      <img 
-        id="previewImage"
-        alt="Preview"
-        class="object-cover filter contrast-75 transition-all duration-500"
-      />
-      <div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent mix-blend-overlay"></div>
-    </div>
-  </div>
+    </main>
+    <aside class="p-8 text-gray-500">
+        <b>Taiga Ishida</b> / 30<br />
+        <b>Brooklyn</b> / NY<br />
+        <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a><br />
+        <a href="https://github.com/TonyTheTaiga" target="_blank">github</a
+        ><br />
+        <a href="https://www.linkedin.com/in/taigaishida/" target="_blank"
+            >linkedin</a
+        >
+    </aside>
 </div>
 
-<script type="text/javascript">
-  const preview = document.getElementById('preview');
-  const previewImage = document.getElementById('previewImage');
-  const previewLoading = document.getElementById('previewLoading');
-  let currentHoveredElement = null;
-  let lastMouseEvent = null;
-  let imageCache = new Map();
-  let loadingTimeout = null;
-
-  function preloadImage(element) {
-    const imageUrl = element.dataset.image;
-    if (!imageCache.has(imageUrl)) {
-      const img = new Image();
-      img.onload = function() {
-        imageCache.set(imageUrl, {
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-          loaded: true
-        });
-      };
-      img.onerror = function() {
-        imageCache.set(imageUrl, { loaded: false });
-      };
-      imageCache.set(imageUrl, { loaded: false });
-      img.src = imageUrl;
+<script>
+    function handleImgLoad(img) {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        const maxW = 150;
+        if (w > maxW) {
+            const ratio = maxW / w;
+            img.style.width = maxW + "px";
+            img.style.height = h * ratio + "px";
+        } else {
+            img.style.width = w + "px";
+            img.style.height = h + "px";
+        }
     }
-  }
-
-  function showLoadingState() {
-    previewLoading.classList.remove('hidden');
-    loadingTimeout = setTimeout(() => {
-      preview.classList.add('hidden');
-    }, 1000);
-  }
-
-  function hideLoadingState() {
-    previewLoading.classList.add('hidden');
-    if (loadingTimeout) {
-      clearTimeout(loadingTimeout);
-      loadingTimeout = null;
-    }
-  }
-
-  function handleImageLoad(img) {
-    hideLoadingState();
-    
-    const isVertical = img.naturalHeight > img.naturalWidth;
-    
-    if (isVertical) {
-      img.style.width = '340px';
-      img.style.height = '500px';
-    } else {
-      img.style.width = '500px';
-      img.style.height = '340px';
-    }
-
-    if (lastMouseEvent) {
-      positionPreview(lastMouseEvent);
-      preview.classList.remove('hidden');
-    }
-  }
-
-  function positionPreview(event) {
-    if (!previewImage.complete) return;
-
-    const x = event.clientX + 20;
-    const y = event.clientY - 100;
-    
-    const width = previewImage.offsetWidth;
-    const height = previewImage.offsetHeight;
-    
-    const maxX = window.innerWidth - width - 20;
-    const maxY = window.innerHeight - height - 20;
-    
-    preview.style.left = Math.min(x, maxX) + 'px';
-    preview.style.top = Math.max(20, Math.min(y, maxY)) + 'px';
-  }
-  previewImage.onload = function() {
-    handleImageLoad(this);
-  };
-
-  previewImage.onerror = function() {
-    hideLoadingState();
-    preview.classList.add('hidden');
-  };
-
-  function handleMouseMove(event, element) {
-    lastMouseEvent = event;
-    const imageUrl = element.dataset.image;
-    if (previewImage.src !== imageUrl) {
-      showLoadingState();
-      preview.classList.add('hidden');
-      previewImage.src = imageUrl;
-    } else if (previewImage.complete) {
-      positionPreview(event);
-      preview.classList.remove('hidden');
-    }
-
-    if (currentHoveredElement !== element) {
-      if (currentHoveredElement) {
-        updateHoverState(currentHoveredElement, false);
-      }
-      updateHoverState(element, true);
-      currentHoveredElement = element;
-    }
-  }
-
-  function handleMouseLeave(element) {
-    preview.classList.add('hidden');
-    hideLoadingState();
-    updateHoverState(element, false);
-    currentHoveredElement = null;
-    lastMouseEvent = null;
-  }
-
-  function updateHoverState(element, isHovered) {
-    const lines = element.querySelectorAll('[data-haiku]');
-    lines[0].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.7)';
-    lines[1].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.6)';
-    lines[2].style.color = isHovered ? 'rgb(0, 0, 0)' : 'rgba(0, 0, 0, 0.5)';
-
-    const lineIndicator = element.querySelector('.line-indicator');
-    lineIndicator.style.opacity = isHovered ? '1' : '0';
-  }
-
-  window.addEventListener('unload', () => {
-    imageCache.clear();
-    if (loadingTimeout) {
-      clearTimeout(loadingTimeout);
-    }
-  });
 </script>
 {% endblock %}
