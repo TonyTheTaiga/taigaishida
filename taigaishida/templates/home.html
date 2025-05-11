@@ -22,20 +22,4 @@
         >
     </aside>
 </div>
-
-<script>
-    function handleImgLoad(img) {
-        const w = img.naturalWidth;
-        const h = img.naturalHeight;
-        const maxW = 150;
-        if (w > maxW) {
-            const ratio = maxW / w;
-            img.style.width = maxW + "px";
-            img.style.height = h * ratio + "px";
-        } else {
-            img.style.width = w + "px";
-            img.style.height = h + "px";
-        }
-    }
-</script>
 {% endblock %}
