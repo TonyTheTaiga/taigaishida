@@ -325,20 +325,15 @@ def build_app() -> FastAPI:
 
         return {"uploadUrl": url}
 
-    @app.get("/gallery", response_class=HTMLResponse)
     @app.get("/", response_class=HTMLResponse)
-    async def gallery(request: Request, gallery=Depends(get_gallery_data)):
+    async def home(request: Request, gallery=Depends(get_gallery_data)):
         if len(gallery) == 0:
             return "Empty Gallery!"
 
         return templates.TemplateResponse(
-            "gallery.html",
+            "home.html",
             {"request": request, "gallery": gallery},
         )
-
-    @app.get("/about", response_class=HTMLResponse)
-    async def about(request: Request):
-        return templates.TemplateResponse("about.html", {"request": request})
 
     @app.get("/upload", response_class=HTMLResponse)
     async def upload(request: Request):
