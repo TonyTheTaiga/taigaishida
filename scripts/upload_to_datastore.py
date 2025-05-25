@@ -73,9 +73,9 @@ def read_exif(image) -> dict:
     print(json.dumps(tags, indent=4))
 
     try:
-        tags[
-            "latlong"
-        ] = f'{dms_to_decimal(tags["GPSLatitude"]):.5f} {tags["GPSLatitudeRef"]}, {dms_to_decimal(tags["GPSLongitude"]):.5f} {tags["GPSLongitudeRef"]}'
+        tags["latlong"] = (
+            f"{dms_to_decimal(tags['GPSLatitude']):.5f} {tags['GPSLatitudeRef']}, {dms_to_decimal(tags['GPSLongitude']):.5f} {tags['GPSLongitudeRef']}"
+        )
     except Exception as e:
         print(e)
         pass

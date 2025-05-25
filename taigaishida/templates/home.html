@@ -1,24 +1,241 @@
 {% extends "layout.html" %} {% block content %}
-<div class="sm:h-dvh md:h-screen lg:h-screen grid grid-cols-1">
-    <aside class="p-4 text-gray-500">
-        <b>Taiga Ishida</b> / 30<br />
-        <b>Brooklyn</b> / NY<br />
-        <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a><br />
-        <a href="https://github.com/TonyTheTaiga" target="_blank">github</a >
-    </aside>
-    <main
-        class="overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
-    >
-        {% for item in gallery %}
-        <div class="p-4 relative">
-            <img src="{{item.url}}" class="object-contain" />
-            <div class="absolute top-4 right-4 z-10">
-                <span>{{ item.line1 }}</span><br />
-                <span>{{ item.line2 }}</span><br />
-                <span>{{ item.line3 }}</span>
+<div class="min-h-screen flex flex-col lg:flex-row">
+    <aside class="lg:w-80 lg:fixed lg:h-screen bg-white border-r border-gray-100 p-6 lg:p-8 flex flex-col justify-start">
+        <div class="space-y-4">
+            <div>
+                <h1 class="text-lg font-medium text-gray-900">Taiga Ishida</h1>
+                <p class="text-sm text-gray-500 mt-1">30</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-900">Brooklyn</p>
+                <p class="text-sm text-gray-500">NY</p>
+            </div>
+            <div class="space-y-2 pt-2">
+                <a href="mailto:ishidataiga@gmail.com" class="block text-sm text-gray-600 hover:text-gray-900 transition-colors">ishidataiga@gmail.com</a>
+                <a href="https://github.com/TonyTheTaiga" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 transition-colors">github</a>
             </div>
         </div>
-        {% endfor %}
+    </aside>
+    
+    <main id="gallery-main" class="flex-1 lg:ml-80 p-6 lg:p-12 lg:h-screen lg:overflow-y-auto lg:snap-y lg:snap-mandatory relative">
+        <div class="max-w-2xl mx-auto">
+            {% for item in gallery %}
+            <div class="mb-8 lg:mb-12 group lg:snap-center lg:h-screen lg:flex lg:items-center lg:justify-center gallery-item transition-opacity duration-500" data-image-index="{{ loop.index0 }}" style="{% if loop.index0 != 0 %}display: none;{% endif %}">
+                <div class="relative bg-white border border-gray-50 hover:border-gray-200 transition-all duration-500 hover:shadow-lg flex items-center justify-center overflow-hidden">
+                    <div class="relative">
+                        <img src="{{item.url}}" class="max-w-full max-h-screen object-contain" />
+                        {% if item.line1 or item.line2 or item.line3 %}
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                            <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
+                                {% if item.line1 %}<div class="text-sm font-light">{{ item.line1 }}</div>{% endif %}
+                                {% if item.line2 %}<div class="text-xs opacity-90 mt-1">{{ item.line2 }}</div>{% endif %}
+                                {% if item.line3 %}<div class="text-xs opacity-80 mt-1">{{ item.line3 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </main>
 </div>
 {% endblock %}
+
+<script>
+const main = document.getElementById('gallery-main');
+const images = document.querySelectorAll('.gallery-item');
+const isMobile = window.innerWidth < 1024;
+let currentImageIndex = 0;
+let isTransitioning = false;
+
+// Mobile swipe navigation with fade transitions
+if (isMobile) {
+    let startY = 0;
+    let startX = 0;
+    let currentY = 0;
+    let currentX = 0;
+    let isSwipeStarted = false;
+    const SWIPE_THRESHOLD = 50;
+    
+    // Show only first image initially on mobile
+    images.forEach((img, index) => {
+        if (index === 0) {
+            img.style.display = 'block';
+            img.style.opacity = '1';
+        } else {
+            img.style.display = 'none';
+            img.style.opacity = '0';
+        }
+    });
+    
+    function showImage(index) {
+        if (index >= 0 && index < images.length && !isTransitioning) {
+            isTransitioning = true;
+            const currentImg = images[currentImageIndex];
+            const targetImg = images[index];
+            
+            // Fade out current image
+            currentImg.style.opacity = '0';
+            
+            // After fade out, switch to new image
+            setTimeout(() => {
+                currentImg.style.display = 'none';
+                targetImg.style.display = 'block';
+                targetImg.style.opacity = '0';
+                
+                // Fade in new image
+                setTimeout(() => {
+                    targetImg.style.opacity = '1';
+                    currentImageIndex = index;
+                    
+                    setTimeout(() => {
+                        isTransitioning = false;
+                    }, 500);
+                }, 50);
+            }, 250);
+        }
+    }
+    
+    main.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        startX = e.touches[0].clientX;
+        isSwipeStarted = true;
+    }, { passive: true });
+    
+    main.addEventListener('touchmove', (e) => {
+        if (!isSwipeStarted) return;
+        currentY = e.touches[0].clientY;
+        currentX = e.touches[0].clientX;
+    }, { passive: true });
+    
+    main.addEventListener('touchend', (e) => {
+        if (!isSwipeStarted || isTransitioning) return;
+        
+        const diffY = startY - currentY;
+        const diffX = startX - currentX;
+        
+        // Prioritize vertical swipes, but allow horizontal as well
+        if (Math.abs(diffY) > Math.abs(diffX)) {
+            // Vertical swipe
+            if (Math.abs(diffY) > SWIPE_THRESHOLD) {
+                if (diffY > 0) {
+                    // Swipe up - next image
+                    showImage(currentImageIndex + 1);
+                } else {
+                    // Swipe down - previous image
+                    showImage(currentImageIndex - 1);
+                }
+            }
+        } else {
+            // Horizontal swipe
+            if (Math.abs(diffX) > SWIPE_THRESHOLD) {
+                if (diffX > 0) {
+                    // Swipe left - next image
+                    showImage(currentImageIndex + 1);
+                } else {
+                    // Swipe right - previous image
+                    showImage(currentImageIndex - 1);
+                }
+            }
+        }
+        
+        isSwipeStarted = false;
+    }, { passive: true });
+    
+} else {
+    // Desktop weighted scroll navigation
+    let isScrolling = false;
+    let scrollTimeout;
+    let wheelDelta = 0;
+    const SCROLL_THRESHOLD = 100;
+    
+    // Show all images on desktop
+    images.forEach(img => {
+        img.style.display = 'block';
+        img.style.opacity = '1';
+    });
+    
+    function getCurrentImageIndex() {
+        const scrollTop = main.scrollTop;
+        const viewportHeight = main.clientHeight;
+        const centerPoint = scrollTop + viewportHeight / 2;
+        
+        let closestIndex = 0;
+        let closestDistance = Infinity;
+        
+        images.forEach((img, index) => {
+            const imgTop = img.offsetTop;
+            const imgHeight = img.offsetHeight;
+            const imgCenter = imgTop + imgHeight / 2;
+            const distance = Math.abs(centerPoint - imgCenter);
+            
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = index;
+            }
+        });
+        
+        return closestIndex;
+    }
+    
+    function scrollToImage(index) {
+        if (index >= 0 && index < images.length) {
+            isScrolling = true;
+            const targetImage = images[index];
+            const targetTop = targetImage.offsetTop;
+            const viewportHeight = main.clientHeight;
+            const imageHeight = targetImage.offsetHeight;
+            const centerOffset = (viewportHeight - imageHeight) / 2;
+            
+            main.scrollTo({
+                top: Math.max(0, targetTop - centerOffset),
+                behavior: 'smooth'
+            });
+            
+            setTimeout(() => {
+                isScrolling = false;
+            }, 800);
+        }
+    }
+    
+    main.addEventListener('wheel', (e) => {
+        if (isScrolling) {
+            e.preventDefault();
+            return;
+        }
+        
+        wheelDelta += e.deltaY;
+        
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            if (Math.abs(wheelDelta) > SCROLL_THRESHOLD) {
+                const currentIndex = getCurrentImageIndex();
+                const direction = wheelDelta > 0 ? 1 : -1;
+                scrollToImage(currentIndex + direction);
+            }
+            wheelDelta = 0;
+        }, 50);
+        
+        if (Math.abs(wheelDelta) < SCROLL_THRESHOLD / 2) {
+            return;
+        }
+        
+        e.preventDefault();
+    }, { passive: false });
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            const currentIndex = getCurrentImageIndex();
+            scrollToImage(currentIndex + 1);
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            const currentIndex = getCurrentImageIndex();
+            scrollToImage(currentIndex - 1);
+        }
+    });
+}
+</script>
+

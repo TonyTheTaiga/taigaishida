@@ -1,52 +1,66 @@
 {% extends "layout.html" %} {% block content %}
-<div class="flex items-center justify-center h-screen">
-    <div class="w-full max-w-xs">
-        <form id="upload-form" class="bg-neutral-900 p-8">
-            <div class="mb-4 text-white">
-                <label class="block text-sm font-bold mb-2" for="image">
-                    Choose an image to upload
-                </label>
-                <input
-                    id="file-input"
-                    class="bg-neutral-800 border border-neutral-700 w-full py-2 px-3 text-neutral-200"
-                    type="file"
-                    name="image"
-                />
-            </div>
-            <div class="mb-4">
-                <label
-                    class="block text-sm font-bold mb-2 text-white"
-                    for="passphrase"
-                >
-                    Passphrase
-                </label>
-                <input
-                    id="passphrase-input"
-                    class="bg-black border border-neutral-700 w-full py-2 px-3 text-white"
-                    type="password"
-                    name="passphrase"
-                />
-            </div>
+<div class="min-h-screen flex flex-col lg:flex-row">
+    <aside class="lg:w-80 lg:fixed lg:h-screen bg-white border-r border-gray-100 p-6 lg:p-8 flex flex-col justify-start">
+        <div class="space-y-4">
             <div>
-                <button
-                    id="upload-button"
-                    class="bg-neutral-700 hover:bg-neutral-600 text-white font-bold py-2 px-4 w-full relative overflow-hidden"
-                    type="submit"
-                >
-                    <span id="button-text">Upload</span>
-                    <div
-                        id="button-spinner"
-                        class="h-5 w-5 border-2 border-white border-t-transparent rounded-full absolute top-1/2 left-1/2 transform-gpu -translate-x-1/2 -translate-y-1/2"
-                        style="
-                            animation: spin 1s linear infinite;
-                            display: none;
-                        "
-                    ></div>
-                </button>
+                <h1 class="text-lg font-medium text-gray-900">Upload</h1>
+                <p class="text-sm text-gray-500 mt-1">Add to gallery</p>
             </div>
-        </form>
-        <div id="message" class="text-gray-800 mt-4"></div>
-    </div>
+        </div>
+    </aside>
+    
+    <main class="flex-1 lg:ml-80 flex items-center justify-center p-6 lg:p-12">
+        <div class="w-full max-w-md">
+            <form id="upload-form" class="bg-white border border-gray-100 p-8 hover:border-gray-200 transition-colors duration-300">
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-3" for="image">
+                            Choose an image
+                        </label>
+                        <input
+                            id="file-input"
+                            class="block w-full text-sm text-gray-900 border border-gray-200 bg-gray-50 hover:bg-white focus:bg-white cursor-pointer transition-colors duration-200 p-3"
+                            type="file"
+                            name="image"
+                            accept="image/*"
+                        />
+                    </div>
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-900 mb-3"
+                            for="passphrase"
+                        >
+                            Passphrase
+                        </label>
+                        <input
+                            id="passphrase-input"
+                            class="w-full px-3 py-3 text-gray-900 bg-gray-50 border border-gray-200 hover:bg-white focus:bg-white focus:border-gray-300 transition-colors duration-200"
+                            type="password"
+                            name="passphrase"
+                        />
+                    </div>
+                    <div>
+                        <button
+                            id="upload-button"
+                            class="w-full bg-gray-900 hover:bg-gray-700 text-white font-medium py-3 px-4 transition-colors duration-200 relative overflow-hidden"
+                            type="submit"
+                        >
+                            <span id="button-text">Upload</span>
+                            <div
+                                id="button-spinner"
+                                class="h-5 w-5 border-2 border-white border-t-transparent rounded-full absolute top-1/2 left-1/2 transform-gpu -translate-x-1/2 -translate-y-1/2"
+                                style="
+                                    animation: spin 1s linear infinite;
+                                    display: none;
+                                "
+                            ></div>
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div id="message" class="text-gray-600 mt-6 text-center text-sm"></div>
+        </div>
+    </main>
 </div>
 
 <script>
@@ -154,5 +168,35 @@
             }
         });
 </script>
+
+<style>
+input[type="file"]::-webkit-file-upload-button {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 0.5rem 1rem;
+    margin-right: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+input[type="file"]::-webkit-file-upload-button:hover {
+    background: #ffffff;
+    border-color: #d1d5db;
+}
+
+input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.1);
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+</style>
 
 {% endblock %}
