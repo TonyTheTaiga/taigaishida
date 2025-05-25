@@ -1,24 +1,82 @@
 {% extends "layout.html" %} {% block content %}
-<div class="sm:h-dvh md:h-screen lg:h-screen grid grid-cols-1">
-    <aside class="p-4 text-gray-500">
-        <b>Taiga Ishida</b> / 30<br />
-        <b>Brooklyn</b> / NY<br />
-        <a href="mailto:ishidataiga@gmail.com">ishidataiga@gmail.com</a><br />
-        <a href="https://github.com/TonyTheTaiga" target="_blank">github</a >
-    </aside>
-    <main
-        class="overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
-    >
-        {% for item in gallery %}
-        <div class="p-4 relative">
-            <img src="{{item.url}}" class="object-contain" />
-            <div class="absolute top-4 right-4 z-10">
-                <span>{{ item.line1 }}</span><br />
-                <span>{{ item.line2 }}</span><br />
-                <span>{{ item.line3 }}</span>
+<div class="min-h-screen flex flex-col lg:flex-row">
+    <aside class="lg:w-80 lg:fixed lg:h-screen bg-white border-r border-gray-100 p-6 lg:p-8 flex flex-col justify-start">
+        <div class="space-y-4">
+            <div>
+                <h1 class="text-lg font-medium text-gray-900">Taiga Ishida</h1>
+                <p class="text-sm text-gray-500 mt-1">30</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-900">Brooklyn</p>
+                <p class="text-sm text-gray-500">NY</p>
+            </div>
+            <div class="space-y-2 pt-2">
+                <a href="mailto:ishidataiga@gmail.com" class="block text-sm text-gray-600 hover:text-gray-900 transition-colors">ishidataiga@gmail.com</a>
+                <a href="https://github.com/TonyTheTaiga" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 transition-colors">github</a>
             </div>
         </div>
-        {% endfor %}
+    </aside>
+    
+    <main class="flex-1 lg:ml-80 p-6 lg:p-12">
+        <div class="masonry-grid">
+            {% for item in gallery %}
+            <div class="masonry-item group">
+                <div class="relative bg-white border border-gray-50 hover:border-gray-200 transition-all duration-500 hover:shadow-lg overflow-hidden">
+                    <img src="{{item.url}}" class="w-full h-auto block transition-transform duration-700 hover:scale-[1.01]" />
+                    {% if item.line1 or item.line2 or item.line3 %}
+                    <div class="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors duration-500 flex items-end">
+                        <div class="p-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {% if item.line1 %}<div class="text-sm font-light">{{ item.line1 }}</div>{% endif %}
+                            {% if item.line2 %}<div class="text-xs opacity-90 mt-1">{{ item.line2 }}</div>{% endif %}
+                            {% if item.line3 %}<div class="text-xs opacity-80 mt-1">{{ item.line3 }}</div>{% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </main>
 </div>
 {% endblock %}
+
+<style>
+.masonry-grid {
+    column-count: 1;
+    column-gap: 2rem;
+    max-width: 100%;
+}
+
+.masonry-item {
+    break-inside: avoid;
+    margin-bottom: 2rem;
+    display: inline-block;
+    width: 100%;
+}
+
+@media (min-width: 640px) {
+    .masonry-grid {
+        column-count: 2;
+        column-gap: 1.5rem;
+    }
+    .masonry-item {
+        margin-bottom: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .masonry-grid {
+        column-count: 3;
+        column-gap: 2rem;
+    }
+    .masonry-item {
+        margin-bottom: 2rem;
+    }
+}
+
+@media (min-width: 1536px) {
+    .masonry-grid {
+        column-count: 4;
+    }
+}
+</style>
