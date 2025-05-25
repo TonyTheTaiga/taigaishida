@@ -72,27 +72,27 @@ class GalleryItem(BaseModel):
 
     @classmethod
     def from_entity(cls, entity: dict) -> "GalleryItem":
-        haiku = entity.get('haiku', ['', '', ''])
+        haiku = entity.get("haiku", ["", "", ""])
         return cls(
-            url=entity.get('public_url'),
+            url=entity.get("public_url"),
             haiku=haiku,
             line1=haiku[0],
             line2=haiku[1],
             line3=haiku[2],
-            created=entity.get('created'),
-            latlong=entity.get('latlong'),
-            model=entity.get('Model'),
-            exposure_time=entity.get('ExposureTime'),
-            f_number=entity.get('FNumber'),
-            iso=entity.get('ISOSpeedRatings'),
-            focal_length=entity.get('FocalLength'),
-            focal_length_35mm=entity.get('FocalLengthIn35mmFilm'),
-            md5=entity.get('md5'),
-            dominant_hue=entity.get('dominant_hue'),
-            dominant_rgb=entity.get('dominant_rgb'),
-            saturation=entity.get('saturation'),
-            brightness=entity.get('brightness'),
-            color_category=entity.get('color_category')
+            created=entity.get("created"),
+            latlong=entity.get("latlong"),
+            model=entity.get("Model"),
+            exposure_time=entity.get("ExposureTime"),
+            f_number=entity.get("FNumber"),
+            iso=entity.get("ISOSpeedRatings"),
+            focal_length=entity.get("FocalLength"),
+            focal_length_35mm=entity.get("FocalLengthIn35mmFilm"),
+            md5=entity.get("md5"),
+            dominant_hue=entity.get("dominant_hue"),
+            dominant_rgb=entity.get("dominant_rgb"),
+            saturation=entity.get("saturation"),
+            brightness=entity.get("brightness"),
+            color_category=entity.get("color_category"),
         )
 
 
@@ -116,7 +116,9 @@ def get_openai_client() -> OpenAI:
 
     if api_key.startswith("projects/"):
         secret_manager = secret_manager_client()
-        api_key = secret_manager.access_secret_version(name=api_key).payload.data.decode("utf-8")
+        api_key = secret_manager.access_secret_version(
+            name=api_key
+        ).payload.data.decode("utf-8")
 
     return OpenAI(api_key=api_key)
 
@@ -163,7 +165,12 @@ def get_haiku(b64_image: str):
         message = json.loads(content)  # pyright: ignore
     except json.decoder.JSONDecodeError as e:
         if content.startswith("```json"):
-            message = json.loads(content.lstrip("```json").rstrip("```").replace("\n", "").replace(" ", ""))
+            message = json.loads(
+                content.lstrip("```json")
+                .rstrip("```")
+                .replace("\n", "")
+                .replace(" ", "")
+            )
         else:
             print(response.choices[0].message.content)
             raise e
@@ -176,26 +183,26 @@ def extract_dominant_hue(image_bytes: bytes) -> dict:
     try:
         # Create ColorThief instance from bytes
         color_thief = ColorThief(BytesIO(image_bytes))
-        
+
         # Get dominant color (RGB)
         dominant_color = color_thief.get_color(quality=1)
-        
+
         # Convert RGB to HSV to get hue
-        r, g, b = [x/255.0 for x in dominant_color]
+        r, g, b = [x / 255.0 for x in dominant_color]
         h, s, v = colorsys.rgb_to_hsv(r, g, b)
-        
+
         # Convert hue to degrees (0-360)
         hue_degrees = int(h * 360)
-        
+
         # Get color category
         color_category = get_color_category(hue_degrees)
-        
+
         return {
             "dominant_hue": hue_degrees,
             "dominant_rgb": list(dominant_color),
             "saturation": round(s, 2),
             "brightness": round(v, 2),
-            "color_category": color_category
+            "color_category": color_category,
         }
     except Exception as e:
         logger.warning(f"Could not extract color data: {e}")
@@ -204,7 +211,7 @@ def extract_dominant_hue(image_bytes: bytes) -> dict:
             "dominant_rgb": None,
             "saturation": None,
             "brightness": None,
-            "color_category": None
+            "color_category": None,
         }
 
 
@@ -225,15 +232,17 @@ def get_color_category(hue: int) -> str:
     else:
         return "pink"
 
+
 def get_gallery_data():
     ds_client = get_ds_client()
     entities = get_entities("Image", ds_client)
     gallery = [GalleryItem.from_entity(e) for e in entities]
-    
+
     # Sort by brightness: light to dark (highest to lowest brightness)
     gallery.sort(key=lambda x: x.brightness or 0, reverse=True)
-    
+
     return gallery
+
 
 def dms_to_decimal(dms):
     """
@@ -248,7 +257,9 @@ def dms_to_decimal(dms):
     """
 
     # Unpack the degrees, minutes, and seconds
-    degrees, minutes, seconds_fraction = dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
+    degrees, minutes, seconds_fraction = (
+        dms.replace(",", "").lstrip("[").rstrip("]").split(" ")
+    )
     # Convert the seconds fraction if it's a string fraction
     if isinstance(seconds_fraction, str) and "/" in seconds_fraction:
         numerator, denominator = map(float, seconds_fraction.split("/"))
@@ -278,9 +289,9 @@ def read_exif(image_buf) -> dict:
     tags["created"] = _convert_datetime_to_iso_format(tags["DateTime"])
 
     try:
-        tags[
-            "latlong"
-        ] = f'{dms_to_decimal(tags["GPSLatitude"]):.5f} {tags["GPSLatitudeRef"]}, {dms_to_decimal(tags["GPSLongitude"]):.5f} {tags["GPSLongitudeRef"]}'
+        tags["latlong"] = (
+            f"{dms_to_decimal(tags['GPSLatitude']):.5f} {tags['GPSLatitudeRef']}, {dms_to_decimal(tags['GPSLongitude']):.5f} {tags['GPSLongitudeRef']}"
+        )
     except Exception:
         pass
 
@@ -320,7 +331,9 @@ def read_image_bytes(data: BytesIO) -> Image.Image:
     return Image.open(data)
 
 
-def upload(data: bytes, url: str, client: storage.Client, content_type: str) -> storage.Blob:
+def upload(
+    data: bytes, url: str, client: storage.Client, content_type: str
+) -> storage.Blob:
     blob = storage.Blob.from_string(url, client=client)
     blob.upload_from_string(data, content_type=content_type)
 
@@ -355,7 +368,12 @@ def register_image_bg(request: RegisterImageRequest):
 
     webp_image = convert_to_webp(image, quality=75)  # pyright: ignore
     new_filename = request.filename.split(".")[0] + ".webp"
-    webp_blob = upload(webp_image, f"gs://{PUBLIC_BUCKET}/{IMAGE_PREFIX}/{new_filename}", client, "image/webp")
+    webp_blob = upload(
+        webp_image,
+        f"gs://{PUBLIC_BUCKET}/{IMAGE_PREFIX}/{new_filename}",
+        client,
+        "image/webp",
+    )
     try:
         exif_data = read_exif(image_data)
     except:
@@ -396,7 +414,9 @@ def build_app() -> FastAPI:
     templates = Jinja2Templates(directory=Path(__file__).parent.resolve() / "templates")
 
     @app.post("/register-image", status_code=201)
-    def register_image(request: RegisterImageRequest, background_tasks: BackgroundTasks):
+    def register_image(
+        request: RegisterImageRequest, background_tasks: BackgroundTasks
+    ):
         background_tasks.add_task(register_image_bg, request)
 
     @app.post("/get-upload-url")
@@ -415,7 +435,9 @@ def build_app() -> FastAPI:
         # signing_credentials, project = google.auth.default()  # pyright: ignore
 
         client = get_client()
-        blob = client.bucket(PRIVATE_BUCKET).blob(os.path.join("staging", item.filename))
+        blob = client.bucket(PRIVATE_BUCKET).blob(
+            os.path.join("staging", item.filename)
+        )
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=5),
