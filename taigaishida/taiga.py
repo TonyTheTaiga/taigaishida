@@ -1,4 +1,5 @@
 import base64
+import colorsys
 import json
 import logging
 import os
@@ -10,6 +11,7 @@ from pathlib import Path
 
 import exifread
 import google.auth
+from colorthief import ColorThief
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -62,6 +64,11 @@ class GalleryItem(BaseModel):
     focal_length: str | None = None
     focal_length_35mm: str | None = None
     md5: str | None = None
+    dominant_hue: int | None = None
+    dominant_rgb: list[int] | None = None
+    saturation: float | None = None
+    brightness: float | None = None
+    color_category: str | None = None
 
     @classmethod
     def from_entity(cls, entity: dict) -> "GalleryItem":
@@ -80,7 +87,12 @@ class GalleryItem(BaseModel):
             iso=entity.get('ISOSpeedRatings'),
             focal_length=entity.get('FocalLength'),
             focal_length_35mm=entity.get('FocalLengthIn35mmFilm'),
-            md5=entity.get('md5')
+            md5=entity.get('md5'),
+            dominant_hue=entity.get('dominant_hue'),
+            dominant_rgb=entity.get('dominant_rgb'),
+            saturation=entity.get('saturation'),
+            brightness=entity.get('brightness'),
+            color_category=entity.get('color_category')
         )
 
 
@@ -158,11 +170,69 @@ def get_haiku(b64_image: str):
 
     return list(message.values())
 
+
+def extract_dominant_hue(image_bytes: bytes) -> dict:
+    """Extract dominant color information from image bytes"""
+    try:
+        # Create ColorThief instance from bytes
+        color_thief = ColorThief(BytesIO(image_bytes))
+        
+        # Get dominant color (RGB)
+        dominant_color = color_thief.get_color(quality=1)
+        
+        # Convert RGB to HSV to get hue
+        r, g, b = [x/255.0 for x in dominant_color]
+        h, s, v = colorsys.rgb_to_hsv(r, g, b)
+        
+        # Convert hue to degrees (0-360)
+        hue_degrees = int(h * 360)
+        
+        # Get color category
+        color_category = get_color_category(hue_degrees)
+        
+        return {
+            "dominant_hue": hue_degrees,
+            "dominant_rgb": list(dominant_color),
+            "saturation": round(s, 2),
+            "brightness": round(v, 2),
+            "color_category": color_category
+        }
+    except Exception as e:
+        logger.warning(f"Could not extract color data: {e}")
+        return {
+            "dominant_hue": None,
+            "dominant_rgb": None,
+            "saturation": None,
+            "brightness": None,
+            "color_category": None
+        }
+
+
+def get_color_category(hue: int) -> str:
+    """Group hues into artistic color families"""
+    if hue < 15 or hue > 345:
+        return "red"
+    elif hue < 45:
+        return "orange"
+    elif hue < 75:
+        return "yellow"
+    elif hue < 150:
+        return "green"
+    elif hue < 210:
+        return "blue"
+    elif hue < 270:
+        return "purple"
+    else:
+        return "pink"
+
 def get_gallery_data():
     ds_client = get_ds_client()
     entities = get_entities("Image", ds_client)
     gallery = [GalleryItem.from_entity(e) for e in entities]
-    random.shuffle(gallery)
+    
+    # Sort by brightness: light to dark (highest to lowest brightness)
+    gallery.sort(key=lambda x: x.brightness or 0, reverse=True)
+    
     return gallery
 
 def dms_to_decimal(dms):
@@ -291,6 +361,9 @@ def register_image_bg(request: RegisterImageRequest):
     except:
         exif_data = {}
 
+    # Extract color information
+    color_data = extract_dominant_hue(webp_image)
+
     b64_image = base64.b64encode(webp_image).decode("utf-8")
     haiku_lines = get_haiku(b64_image)
     data = {
@@ -299,6 +372,7 @@ def register_image_bg(request: RegisterImageRequest):
         "haiku": haiku_lines,
         "public_url": webp_blob.public_url,
         **exif_data,
+        **color_data,
     }
     entity = create_entity(IMAGE_KIND, data, ds_client)
     ds_client.put(entity)
@@ -353,7 +427,8 @@ def build_app() -> FastAPI:
         return {"uploadUrl": url}
 
     @app.get("/", response_class=HTMLResponse)
-    async def home(request: Request, gallery=Depends(get_gallery_data)):
+    async def home(request: Request):
+        gallery = get_gallery_data()
         if len(gallery) == 0:
             return "Empty Gallery!"
 
