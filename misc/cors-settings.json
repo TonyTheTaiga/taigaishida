@@ -1,6 +1,10 @@
 [
   {
-    "origin": ["https://taigaishida.com", "http://localhost:8000"],
+    "origin": [
+      "https://taigaishida.com",
+      "https://www.taigaishida.com",
+      "http://localhost:8000"
+    ],
     "method": ["GET", "HEAD", "PUT", "POST", "OPTIONS"],
     "responseHeader": ["Content-Type", "X-Goog-Upload-Protocol"],
     "maxAgeSeconds": 3600
