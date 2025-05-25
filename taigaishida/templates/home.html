@@ -25,7 +25,7 @@
                     <div class="relative">
                         <img src="{{item.url}}" class="max-w-full max-h-screen object-contain" />
                         {% if item.line1 or item.line2 or item.line3 %}
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 mobile-haiku duration-300" onclick="this.classList.toggle('show-mobile')">
                             <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
                                 {% if item.line1 %}<div class="text-sm font-light">{{ item.line1 }}</div>{% endif %}
                                 {% if item.line2 %}<div class="text-xs opacity-90 mt-1">{{ item.line2 }}</div>{% endif %}
