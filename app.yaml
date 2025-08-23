@@ -1,8 +1,54 @@
-service: default
-runtime: python311
-entrypoint: python3 -m uvicorn --factory taigaishida.taiga:build_app --port ${PORT}
-env_variables:
-  STORAGE_URL: "https://storage.googleapis.com/taiga-ishida-public/website-images/"
-  OPENAI_API_KEY: "projects/1030250455947/secrets/openai_key/versions/1"
+runtime: nodejs20
 
+service: default
+
+# Environment variables
+env_variables:
+  NODE_ENV: production
+  GOOGLE_CLOUD_PROJECT: taigaishida-217622
+  GCLOUD_PROJECT: taigaishida-217622
+
+# Instance configuration
 instance_class: F1
+automatic_scaling:
+  min_instances: 0
+  max_instances: 10
+  target_cpu_utilization: 0.6
+
+# Health check configuration
+readiness_check:
+  path: '/'
+  check_interval_sec: 5
+  timeout_sec: 4
+  failure_threshold: 2
+  success_threshold: 2
+
+liveness_check:
+  path: '/'
+  check_interval_sec: 30
+  timeout_sec: 4
+  failure_threshold: 4
+  success_threshold: 2
+
+# Skip certain files during deployment
+skip_files:
+  - ^(.*/)?#.*#$
+  - ^(.*/)?.*~$
+  - ^(.*/)?.*\.py[co]$
+  - ^(.*/)?.*/RCS/.*$
+  - ^(.*/)?\..*$
+  - ^(.*/)?node_modules/.*$
+  - ^(.*/)?\.svelte-kit/.*$
+  - ^(.*/)?src/.*$
+  - ^(.*/)?static/.*$
+  - ^(.*/)?tests?/.*$
+  - ^(.*/)?\.git.*$
+  - ^(.*/)?\.env.*$
+  - ^(.*/)?README\.md$
+  - ^(.*/)?tsconfig\.json$
+  - ^(.*/)?svelte\.config\.js$
+  - ^(.*/)?vite\.config\.ts$
+  - ^(.*/)?eslint\.config\.js$
+  - ^(.*/)?\.prettierrc$
+  - ^(.*/)?\.prettierignore$
+  - ^(.*/)?pnpm-lock\.yaml$
