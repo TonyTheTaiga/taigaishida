@@ -10,38 +10,42 @@ env_variables:
 
 # Instance configuration
 instance_class: F1
-automatic_scaling:
-  min_instances: 0
-  max_instances: 10
-  target_cpu_utilization: 0.6
 
 # Health check configuration
 readiness_check:
-  path: '/'
+  path: "/"
   check_interval_sec: 5
   timeout_sec: 4
   failure_threshold: 2
   success_threshold: 2
 
 liveness_check:
-  path: '/'
+  path: "/"
   check_interval_sec: 30
   timeout_sec: 4
   failure_threshold: 4
   success_threshold: 2
 
-# Skip certain files during deployment
+# Skip files that aren't needed in production
 skip_files:
+  # Build artifacts and temporary files
   - ^(.*/)?#.*#$
   - ^(.*/)?.*~$
   - ^(.*/)?.*\.py[co]$
   - ^(.*/)?.*/RCS/.*$
-  - ^(.*/)?\..*$
+
+  # Development dependencies and source files
   - ^(.*/)?node_modules/.*$
   - ^(.*/)?\.svelte-kit/.*$
   - ^(.*/)?src/.*$
   - ^(.*/)?static/.*$
+
+  # Test files
   - ^(.*/)?tests?/.*$
+  - ^(.*/)?.*\.test\..*$
+  - ^(.*/)?.*\.spec\..*$
+
+  # Version control and development config
   - ^(.*/)?\.git.*$
   - ^(.*/)?\.env.*$
   - ^(.*/)?README\.md$
@@ -51,4 +55,21 @@ skip_files:
   - ^(.*/)?eslint\.config\.js$
   - ^(.*/)?\.prettierrc$
   - ^(.*/)?\.prettierignore$
+  - ^(.*/)?\.gcloudignore$
+
+  # Lock files
   - ^(.*/)?pnpm-lock\.yaml$
+  - ^(.*/)?yarn\.lock$
+  - ^(.*/)?package-lock\.json$
+
+  # Python and other development artifacts
+  - ^(.*/)?\.ruff_cache/.*$
+  - ^(.*/)?\.ropeproject/.*$
+  - ^(.*/)?\.venv/.*$
+  - ^(.*/)?__pycache__/.*$
+
+  # IDE and OS files
+  - ^(.*/)?\.vscode/.*$
+  - ^(.*/)?\.idea/.*$
+  - ^(.*/)?\.DS_Store$
+  - ^(.*/)?Thumbs\.db$
