@@ -1,0 +1,88 @@
+# .gcloudignore - Exclude files from App Engine deployment
+
+# Node.js development files
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# SvelteKit build cache
+.svelte-kit/
+
+# Development dependencies and build tools
+.vite/
+dist/
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python virtual environments and cache
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.ropeproject/
+.ruff_cache/
+
+# Documentation
+README.md
+*.md
+
+# Configuration files not needed in production
+tsconfig.json
+svelte.config.js
+vite.config.ts
+eslint.config.js
+.prettierrc
+.prettierignore
+tailwind.config.js
+
+# Lock files (dependencies already in node_modules)
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Testing
+test/
+tests/
+spec/
+*.test.*
+*.spec.*
+coverage/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts and temporary files
+*#
+*~
+RCS/
+
+# Cloud Build files
+cloudbuild.yaml
+.gcloudignore

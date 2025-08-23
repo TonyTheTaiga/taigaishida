@@ -1,8 +1,17 @@
-service: default
-runtime: python311
-entrypoint: python3 -m uvicorn --factory taigaishida.taiga:build_app --port ${PORT}
-env_variables:
-  STORAGE_URL: "https://storage.googleapis.com/taiga-ishida-public/website-images/"
-  OPENAI_API_KEY: "projects/1030250455947/secrets/openai_key/versions/1"
-
+runtime: nodejs20
+env: standard
 instance_class: F1
+
+entrypoint: node build/index.js
+
+automatic_scaling:
+  max_instances: 2
+  min_instances: 0
+  target_cpu_utilization: 0.65
+
+handlers:
+  - url: /.*
+    script: auto
+
+build_env_variables:
+  GOOGLE_NODE_RUN_SCRIPTS: ""
