@@ -147,6 +147,16 @@
             <p class="text-sm font-medium text-gray-900">Brooklyn</p>
             <p class="text-sm text-gray-500">NY</p>
           </div>
+          <div class="mb-6">
+            <p class="text-sm">
+              i've been a ML guy for most of my career with hands on experience training models and deploying CV and NLP solutions.
+            </p>
+          </div>
+          <div class="mb-6">
+            <p class="text-sm">
+              currently i am building <a href="https://toracker.com" class="text-blue-400">Tora</a> to try and make model training fun (again).
+            </p>
+          </div>
           <div class="space-y-3">
             <a
               href="mailto:ishidataiga@gmail.com"
@@ -212,19 +222,4 @@
   </div>
 </div>
 
-<style>
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .animate-in {
-    animation: fade-in 0.5s ease-out;
-  }
-</style>
+<!-- styles moved to src/app.css to avoid Tailwind parser issues -->
