@@ -149,7 +149,7 @@
           </div>
           <div class="mb-6">
             <p class="text-sm">
-              i've been a ML guy for most of my career with hands on experience training models and deploying CV and NLP solutions.
+              i've been a ML guy for most of my career with hands on experience training models and deploying solutions in the CV and NLP space.
             </p>
           </div>
           <div class="mb-6">
