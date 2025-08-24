@@ -18,6 +18,15 @@
 
   let maxPage = $derived(items.length);
 
+  // Ensure overlay (haiku) only updates after the image for the current page has loaded
+  let imageLoaded = $state(false);
+  let currentImageUrl = $derived(pageNumber > 0 ? items[pageNumber - 1]?.url : null);
+  $effect(() => {
+    // Reset loaded state whenever the target image src changes
+    currentImageUrl;
+    imageLoaded = false;
+  });
+
   function goToPage(page: number) {
     if (page < 0 || page > maxPage) return;
     pageNumber = page;
@@ -188,10 +197,12 @@
             src={currentItem.url}
             alt={currentItem.line1 ?? currentItem.haiku?.[0] ?? ""}
             class="max-h-[90vh] max-w-full rounded-lg object-contain"
+            onload={() => (imageLoaded = true)}
+            onerror={() => (imageLoaded = true)}
           />
 
           <!-- Haiku overlay -->
-          {#if currentItem.line1 || currentItem.line2 || currentItem.line3 || currentItem.haiku?.length}
+          {#if imageLoaded && (currentItem.line1 || currentItem.line2 || currentItem.line3 || currentItem.haiku?.length)}
             <div class="absolute inset-0 rounded-xl bg-gradient-to-t from-black/30 via-transparent to-transparent">
               <div class="absolute right-0 bottom-0 left-0 p-6 sm:p-8 text-left text-white">
                 {#if currentItem.line1 || currentItem.haiku?.[0]}
