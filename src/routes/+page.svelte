@@ -122,51 +122,49 @@
   });
 </script>
 
-<div class="fixed inset-0 overflow-hidden bg-white">
+<div class="fixed inset-0 overflow-hidden">
   <div
-    class="fixed top-4 right-4 z-50 rounded-full bg-white/80 px-3 py-1 text-sm text-gray-500 backdrop-blur-sm"
+    class="fixed top-4 right-4 z-50 rounded-full border border-white/50 bg-white/60 px-3 py-1 text-xs tracking-wider text-gray-600 shadow-sm backdrop-blur-md"
   >
     {pageNumber} / {maxPage}
   </div>
 
   <div
-    class="fixed bottom-4 left-4 z-50 rounded-full bg-white/80 px-3 py-1 text-xs text-gray-400 backdrop-blur-sm"
+    class="fixed bottom-4 left-4 z-50 rounded-full border border-white/50 bg-white/50 px-3 py-1 text-xs text-gray-500 backdrop-blur"
   >
     ← → arrows, WASD or swipe to navigate
   </div>
 
   <div class="flex h-full items-center justify-center">
     {#if pageNumber === 0}
-      <div class="animate-in fade-in mx-auto max-w-md p-8">
-        <div
-          class="border border-gray-50 bg-white p-8 transition-all duration-300 hover:border-gray-200 hover:shadow-lg"
-        >
-          <h1 class="mb-2 text-2xl font-medium text-gray-900">Taiga Ishida</h1>
-          <p class="mb-6 text-gray-500">30</p>
-          <div class="mb-6">
+      <div class="animate-in mx-auto max-w-lg p-10">
+        <div class="rounded-2xl bg-white/60 p-10 shadow-sm ring-1 ring-black/5 backdrop-blur-md transition-all duration-300 hover:shadow-md">
+          <h1 class="mb-1 text-3xl font-light tracking-tight text-gray-900">Taiga Ishida</h1>
+          <p class="mb-8 text-sm text-gray-500">30</p>
+          <div class="mb-8">
             <p class="text-sm font-medium text-gray-900">Brooklyn</p>
             <p class="text-sm text-gray-500">NY</p>
           </div>
-          <div class="mb-6">
-            <p class="text-sm">
-              i've been a ML guy for most of my career with hands on experience training models and deploying solutions in the CV and NLP space.
+          <div class="mb-6 text-gray-700">
+            <p class="text-[15px] leading-relaxed">
+              i've been a ML guy for most of my career with hands on experience training models and deploying solutions in the CV/NLP space.
             </p>
           </div>
-          <div class="mb-6">
-            <p class="text-sm">
-              currently i am building <a href="https://toracker.com" class="text-blue-400">Tora</a> to try and make model training fun (again).
+          <div class="mb-10 text-gray-700">
+            <p class="text-[15px] leading-relaxed">
+              currently i am building <a href="https://toracker.com" class="underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-500">Tora</a> to try and make model training fun (again).
             </p>
           </div>
-          <div class="space-y-3">
+          <div class="space-y-2">
             <a
               href="mailto:ishidataiga@gmail.com"
-              class="block text-sm text-gray-600 transition-colors hover:text-gray-900"
+              class="block text-sm text-gray-700 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-gray-900 hover:decoration-neutral-500"
               >ishidataiga@gmail.com</a
             >
             <a
               href="https://github.com/TonyTheTaiga"
               target="_blank"
-              class="block text-sm text-gray-600 transition-colors hover:text-gray-900"
+              class="block text-sm text-gray-700 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-gray-900 hover:decoration-neutral-500"
               >github</a
             >
           </div>
@@ -174,34 +172,30 @@
       </div>
     {:else if pageNumber > 0 && pageNumber <= items.length}
       {@const currentItem = items[pageNumber - 1]}
-      <div class="flex h-full w-full items-center justify-center p-4">
-        <div class="relative max-h-full max-w-full">
+      <div class="flex h-full w-full items-center justify-center p-6 sm:p-10">
+        <div class="relative max-h-full max-w-full rounded-xl bg-white/60 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur-md">
           <img
             src={currentItem.url}
             alt={currentItem.line1 ?? currentItem.haiku?.[0] ?? ""}
-            class="max-h-[90vh] max-w-full object-contain"
+            class="max-h-[90vh] max-w-full rounded-lg object-contain"
           />
 
           <!-- Haiku overlay -->
           {#if currentItem.line1 || currentItem.line2 || currentItem.line3 || currentItem.haiku?.length}
-            <div
-              class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"
-            >
-              <div
-                class="absolute right-0 bottom-0 left-0 p-6 text-left text-white"
-              >
+            <div class="absolute inset-0 rounded-xl bg-gradient-to-t from-black/30 via-transparent to-transparent">
+              <div class="absolute right-0 bottom-0 left-0 p-6 sm:p-8 text-left text-white">
                 {#if currentItem.line1 || currentItem.haiku?.[0]}
-                  <div class="mb-2 text-lg font-light">
+                  <div class="mb-2 text-lg font-light tracking-wide">
                     {currentItem.line1 ?? currentItem.haiku?.[0]}
                   </div>
                 {/if}
                 {#if currentItem.line2 || currentItem.haiku?.[1]}
-                  <div class="mb-1 text-base opacity-90">
+                  <div class="mb-1 text-base font-light opacity-90">
                     {currentItem.line2 ?? currentItem.haiku?.[1]}
                   </div>
                 {/if}
                 {#if currentItem.line3 || currentItem.haiku?.[2]}
-                  <div class="text-base opacity-80">
+                  <div class="text-base font-light opacity-80">
                     {currentItem.line3 ?? currentItem.haiku?.[2]}
                   </div>
                 {/if}
@@ -216,7 +210,7 @@
       </div>
     {:else}
       <div class="flex items-center justify-center text-gray-400">
-        <div>End of gallery</div>
+        <div class="text-sm tracking-wide">End of gallery</div>
       </div>
     {/if}
   </div>
