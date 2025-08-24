@@ -123,6 +123,16 @@
 </script>
 
 <div class="fixed inset-0 overflow-hidden">
+  {#if pageNumber > 0}
+    <button
+      class="fixed top-4 left-4 z-50 rounded-full border border-white/50 bg-white/60 px-3 py-1 text-xs text-gray-600 shadow-sm backdrop-blur-md transition hover:bg-white/80 active:scale-95"
+      onclick={() => goToPage(0)}
+      aria-label="Go to bio"
+      title="Go to bio"
+    >
+      bio
+    </button>
+  {/if}
   <div
     class="fixed top-4 right-4 z-50 rounded-full border border-white/50 bg-white/60 px-3 py-1 text-xs tracking-wider text-gray-600 shadow-sm backdrop-blur-md"
   >
