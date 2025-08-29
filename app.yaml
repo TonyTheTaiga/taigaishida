@@ -22,3 +22,6 @@ handlers:
     secure: always
     http_headers:
       Cache-Control: public, max-age=300
+
+build_env_variables:
+  GOOGLE_NODE_RUN_SCRIPTS: ""
