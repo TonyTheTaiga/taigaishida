@@ -285,3 +285,7 @@ dist
 # End of https://www.toptal.com/developers/gitignore/api/node
 
 creds/
+
+# WASM build outputs
+src/lib/fireworks-wasm/
+crates/fireworks-wasm/target/
