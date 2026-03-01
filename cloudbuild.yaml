@@ -1,8 +1,10 @@
 steps:
   - name: rust:1-slim
     entrypoint: bash
+    env:
+      - 'PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
     args:
-      - -lc
+      - -c
       - |
         rustup target add wasm32-unknown-unknown
         cargo install wasm-pack
