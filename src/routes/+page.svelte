@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	const CHARS = [' ', '.', '\u00B7', '+', '*', '\u2726', '\u2502', '\u257D'];
+	const CHARS = [' ', '.', '\u00B7', '+', '*', '\u2726', '\u2502', '\u257D', 'o', '~', "'", 'x', '%'];
 	const CELL_W = 14;
 	const CELL_H = 18;
 	const CELL_SIZE = 5;
@@ -80,6 +80,34 @@
 
 					ctx.fillStyle = `rgba(${cr},${cg},${cb},${a})`;
 					ctx.fillText(CHARS[charIdx], c * CELL_W, r * CELL_H);
+				}
+			}
+
+			// Water reflection: mirror bottom ~15% of grid
+			const reflectionRows = Math.floor(curRows * 0.15);
+			const reflectionStart = curRows - reflectionRows;
+			for (let rr = 0; rr < reflectionRows; rr++) {
+				const sourceRow = reflectionStart - 1 - rr;
+				if (sourceRow < 0) continue;
+				const destRow = reflectionStart + rr;
+				for (let cc = 0; cc < curCols; cc++) {
+					const srcIdx = (sourceRow * curCols + cc) * CELL_SIZE;
+					const charIdx = buf[srcIdx];
+					const alpha = buf[srcIdx + 4];
+					if (charIdx === 0 || alpha === 0) continue;
+
+					const cr = buf[srcIdx + 1];
+					const cg = buf[srcIdx + 2];
+					const cb = buf[srcIdx + 3];
+					const a = Math.min(1, (alpha / 255) * 0.35);
+
+					// Blue-shift the reflected color
+					const br = Math.floor(cr * 0.5);
+					const bg = Math.floor(cg * 0.6);
+					const bb = Math.min(255, Math.floor(cb * 1.2 + 40));
+
+					ctx.fillStyle = `rgba(${br},${bg},${bb},${a})`;
+					ctx.fillText(CHARS[charIdx] || '.', cc * CELL_W, destRow * CELL_H);
 				}
 			}
 
