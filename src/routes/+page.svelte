@@ -1,20 +1,98 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { FireworkEngine } from '$lib/fireworks';
+
+	const CHARS = [' ', '.', '\u00B7', '+', '*', '\u2726', '\u2502', '\u257D'];
+	const CELL_W = 14;
+	const CELL_H = 18;
+	const CELL_SIZE = 5;
 
 	let canvas: HTMLCanvasElement;
-	let engine: FireworkEngine | null = null;
 
-	onMount(() => {
-		engine = new FireworkEngine(canvas);
-		engine.start();
+	onMount(async () => {
+		const wasm = await import('$lib/fireworks-wasm/fireworks_wasm.js');
+		const wasmExports = await wasm.default();
 
-		const onResize = () => engine?.resize();
+		const ctx = canvas.getContext('2d')!;
+		const { FireworkEngine } = wasm;
+
+		function computeGrid() {
+			const dpr = window.devicePixelRatio || 1;
+			const w = window.innerWidth;
+			const h = window.innerHeight;
+			canvas.width = w * dpr;
+			canvas.height = h * dpr;
+			canvas.style.width = w + 'px';
+			canvas.style.height = h + 'px';
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+			return {
+				cols: Math.floor(w / CELL_W),
+				rows: Math.floor(h / CELL_H),
+			};
+		}
+
+		let { cols, rows } = computeGrid();
+		let engine = new FireworkEngine(cols, rows);
+
+		const onResize = () => {
+			({ cols, rows } = computeGrid());
+			engine.resize(cols, rows);
+		};
 		window.addEventListener('resize', onResize);
 
+		let lastTime = performance.now();
+		let animId = 0;
+		let running = true;
+
+		function tick() {
+			if (!running) return;
+
+			const now = performance.now();
+			const dtSec = (now - lastTime) / 1000;
+			lastTime = now;
+
+			engine.tick(dtSec);
+
+			// Read grid buffer directly from WASM linear memory (zero-copy)
+			const ptr = engine.grid_ptr();
+			const len = engine.grid_len();
+			const buf = new Uint8Array(wasmExports.memory.buffer, ptr, len);
+
+			const curCols = engine.cols();
+			const curRows = engine.rows();
+
+			// Render
+			ctx.fillStyle = '#080810';
+			ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+			ctx.font = `${CELL_H}px monospace`;
+			ctx.textBaseline = 'top';
+
+			for (let r = 0; r < curRows; r++) {
+				for (let c = 0; c < curCols; c++) {
+					const idx = (r * curCols + c) * CELL_SIZE;
+					const charIdx = buf[idx];
+					const alpha = buf[idx + 4];
+					if (charIdx === 0 || alpha === 0) continue;
+
+					const cr = buf[idx + 1];
+					const cg = buf[idx + 2];
+					const cb = buf[idx + 3];
+					const a = Math.min(1, alpha / 255);
+
+					ctx.fillStyle = `rgba(${cr},${cg},${cb},${a})`;
+					ctx.fillText(CHARS[charIdx], c * CELL_W, r * CELL_H);
+				}
+			}
+
+			animId = requestAnimationFrame(tick);
+		}
+
+		animId = requestAnimationFrame(tick);
+
 		return () => {
-			engine?.stop();
+			running = false;
+			cancelAnimationFrame(animId);
 			window.removeEventListener('resize', onResize);
+			engine.free();
 		};
 	});
 </script>

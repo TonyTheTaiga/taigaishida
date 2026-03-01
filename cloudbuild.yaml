@@ -1,4 +1,13 @@
 steps:
+  - name: rust:1-slim
+    entrypoint: bash
+    args:
+      - -lc
+      - |
+        rustup target add wasm32-unknown-unknown
+        cargo install wasm-pack
+        wasm-pack build crates/fireworks-wasm --target web --out-dir ../../src/lib/fireworks-wasm
+
   - name: node:20
     entrypoint: bash
     args:
@@ -6,7 +15,7 @@ steps:
       - |
         npm i -g pnpm
         pnpm install --frozen-lockfile
-        pnpm run build
+        npx vite build
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
