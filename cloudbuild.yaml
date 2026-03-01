@@ -15,7 +15,7 @@ steps:
       - |
         npm i -g pnpm
         pnpm install --frozen-lockfile
-        pnpm run build
+        npx vite build
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
