@@ -48,8 +48,9 @@ function fixture({ shaderFailure = false } = {}) {
   return { canvas, gl, calls, state };
 }
 
-const points = new Float32Array(3600 * 8);
-const trails = new Float32Array(12800 * 10);
+// Matches the engine budgets: 6,000 stars + 800 puffs, 50,000 trail segments.
+const points = new Float32Array(6800 * 8);
+const trails = new Float32Array(50000 * 10);
 
 test("beach scene uses three draws and only uploads visible particle buffers", () => {
   const { canvas, calls } = fixture();
@@ -61,7 +62,7 @@ test("beach scene uses three draws and only uploads visible particle buffers", (
   assert.equal(draws.length, 3);
   assert.deepEqual(
     draws.slice(0, 2).map((c) => c.args[3]),
-    [12800, 3600],
+    [50000, 6800],
   );
   assert.equal(calls.filter((c) => c.name === "bufferSubData").length, 2);
   assert.equal(calls.filter((c) => c.name === "drawElements").length, 0);

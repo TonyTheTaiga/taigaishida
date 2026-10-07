@@ -5,6 +5,20 @@
   const CELL_W = 14;
   const CELL_H = 18;
 
+  // Phones get the portrait-first programme on a smaller particle budget;
+  // tablets and computers get the panoramic show. `?show=mobile` or
+  // `?show=desktop` overrides detection for previews.
+  function prefersMobileShow() {
+    const requested = new URLSearchParams(window.location.search).get("show");
+    if (requested === "mobile" || requested === "desktop") {
+      return requested === "mobile";
+    }
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    const phoneSized =
+      Math.min(window.screen.width, window.screen.height) < 768;
+    return touch && phoneSized;
+  }
+
   let glowCanvas: HTMLCanvasElement;
   let rendererNote = $state("");
   let error = $state("");
@@ -19,6 +33,7 @@
     width: 0,
     height: 0,
   });
+  let showName = $state("");
 
   onMount(() => {
     let disposed = false;
@@ -61,7 +76,8 @@
       }
 
       let { cols, rows } = computeGrid();
-      const engine = new FireworkEngine(cols, rows);
+      const engine = new FireworkEngine(cols, rows, prefersMobileShow());
+      showName = engine.mobile() ? "MOBILE" : "DESKTOP";
 
       const onResize = () => {
         ({ cols, rows } = computeGrid());
@@ -248,7 +264,7 @@
             </div>
           </div>
           <div class="col-span-2 border-t border-white/10 pt-2 text-white/40">
-            BUFFER {diagnostics.width} × {diagnostics.height}
+            {showName} SHOW · BUFFER {diagnostics.width} × {diagnostics.height}
           </div>
         </div>
       </section>
