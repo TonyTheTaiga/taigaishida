@@ -120,24 +120,63 @@ float stars(vec2 uv, float scale, float threshold, float radius) {
   return step(threshold,h)*dotLight*(.55+.45*sin(u_time*1.3+h*6.28));
 }
 void main() {
-  vec2 p=(v_uv-.5)*vec2(u_size.x/u_size.y,1.);
-  vec2 q=vec2(
-    noise(p*1.35+vec2(u_time*.008,2.1)),
-    noise(p*1.35+vec2(7.4,-u_time*.006))
-  );
-  vec2 warped=p+(q-.5)*.72;
-  float cloud=noise(warped*2.1)+noise(warped*4.8)*.38;
-  float ribbon=exp(-pow(warped.y+.16*sin(warped.x*1.7)+.045*sin(warped.x*4.1),2.)*8.);
-  float veil=exp(-pow(warped.y-.31+.12*sin(warped.x*1.3),2.)*15.)*.34;
-  float aurora=(ribbon+veil)*(.42+smoothstep(.48,.94,cloud)*.78);
-  float ambient=1.-smoothstep(.08,1.35,length(p-vec2(-.12,.08)));
-  vec3 space=vec3(.00012,.0002,.00015)+vec3(.00035,.0022,.0008)*ambient;
-  space+=aurora*vec3(.00045,.0068,.0022);
-  space+=aurora*vec3(.00015,.0028,.0012)*smoothstep(-.5,.65,warped.x);
-  float star=stars(v_uv,145.,.991,.19)+stars(v_uv,82.,.996,.13)*.8;
-  space+=vec3(.42,.53,.78)*star*.009;
-  space*=1.-.28*dot(p,p);
-  color=vec4(texture(u_sky,v_uv).rgb+space,1.);
+  float screenY=1.-v_uv.y;
+  float horizon=.75;
+  float shore=.94;
+  float aspect=u_size.x/u_size.y;
+  float x=(v_uv.x-.5)*aspect;
+  vec3 scene;
+
+  if (screenY < horizon) {
+    float skyHeight=screenY/horizon;
+    vec3 zenith=vec3(.008,.016,.031);
+    vec3 lowSky=vec3(.035,.052,.065);
+    scene=mix(lowSky,zenith,smoothstep(.02,.92,skyHeight));
+    float haze=exp(-pow((screenY-(horizon-.012))*42.,2.));
+    scene+=haze*vec3(.035,.026,.016);
+    float cloud=noise(vec2(x*2.8+u_time*.002,skyHeight*10.));
+    float cloudBand=smoothstep(.64,.82,cloud)*smoothstep(.12,.45,skyHeight)
+      *(1.-smoothstep(.62,.86,skyHeight));
+    scene=mix(scene,scene+vec3(.012,.018,.022),cloudBand*.48);
+    float star=stars(v_uv,145.,.991,.19)+stars(v_uv,82.,.996,.13)*.8;
+    scene+=vec3(.42,.53,.78)*star*.009;
+  } else {
+    float depth=clamp((screenY-horizon)/(shore-horizon),0.,1.);
+    float waveX=x*(5.+depth*30.);
+    float wavePhase=waveX+sin(depth*19.+x*3.)*.48+u_time*(.18+depth*.32);
+    float wave=pow(max(0.,sin(wavePhase)),22.);
+    float glintNoise=noise(vec2(waveX*2.4+u_time*.035,depth*22.-u_time*.018));
+    float glints=smoothstep(.73,.94,glintNoise)*wave;
+    vec3 farWater=vec3(.016,.031,.039);
+    vec3 nearWater=vec3(.003,.009,.013);
+    scene=mix(farWater,nearWater,smoothstep(0.,1.,depth));
+    scene+=vec3(.012,.016,.016)*wave*(.12+.48*depth);
+    scene+=vec3(.10,.12,.105)*glints*(.12+.55*depth);
+
+    // Mirror the bright particle buffer around the horizon and let surface
+    // ripples break it into narrow, wavering reflections.
+    float reflectedY=2.*horizon-screenY;
+    float distortion=sin(wavePhase*1.7+depth*11.)*.0018*depth;
+    vec2 reflectedUv=vec2(v_uv.x+distortion,1.-reflectedY);
+    vec3 reflected=vec3(0.);
+    reflected+=max(texture(u_sky,reflectedUv+vec2(-.002,0.)).rgb-vec3(.0196,.0275,.0627),0.);
+    reflected+=max(texture(u_sky,reflectedUv).rgb-vec3(.0196,.0275,.0627),0.);
+    reflected+=max(texture(u_sky,reflectedUv+vec2(.002,0.)).rgb-vec3(.0196,.0275,.0627),0.);
+    scene+=reflected*(.24*(1.-depth*.55))*(.55+.45*wave);
+
+    float shoreline=.94+.003*sin(x*17.)+.0015*(noise(vec2(x*9.,1.))-0.5);
+    float sandMask=smoothstep(shoreline-.004,shoreline+.004,screenY);
+    float foam=exp(-pow((screenY-shoreline)*250.,2.));
+    float sandGrain=noise(vec2(x*180.,screenY*140.));
+    vec3 wetSand=vec3(.018,.015,.012)+sandGrain*.006;
+    wetSand=mix(wetSand,vec3(.034,.025,.017),smoothstep(.955,1.,screenY)*.45);
+    scene=mix(scene,wetSand,sandMask);
+    scene+=vec3(.10,.115,.105)*foam*(1.-sandMask*.65);
+  }
+
+  float vignette=1.-.24*dot(vec2(x,screenY-.5),vec2(x,screenY-.5));
+  scene*=vignette;
+  color=vec4(texture(u_sky,v_uv).rgb+scene,1.);
 }`;
 
 function program(gl: WebGL2RenderingContext, vertex: string, fragment: string) {

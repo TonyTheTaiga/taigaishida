@@ -46,8 +46,9 @@ history sampling runs at the simulation rate, independent of the display rate.
 
 `src/lib/renderers/glow.ts` uses WebGL 2 instancing to draw trajectory segments,
 smoke, and glowing particles in two batches. The full-frame particle field is
-composited over a procedural emerald aurora environment; no horizon or water
-plane is drawn. The WASM buffers upload directly into
+composited over a beach-at-night scene with a low ocean horizon, perspective
+wave glints, a subtle shoreline, and rippled reflections sampled from the
+fireworks buffer. The WASM buffers upload directly into
 reusable GPU buffers; no per-star Canvas paths or canvas self-copies are needed.
 Glow rendering is capped at 1.35× device scale and 1.8 million pixels
 to bound GPU work on Retina/4K displays. The page owns viewport sizing and the

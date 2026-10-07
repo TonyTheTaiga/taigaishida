@@ -51,7 +51,7 @@ function fixture({ shaderFailure = false } = {}) {
 const points = new Float32Array(3600 * 8);
 const trails = new Float32Array(12800 * 10);
 
-test("abstract space uses three draws and only uploads visible particle buffers", () => {
+test("beach scene uses three draws and only uploads visible particle buffers", () => {
   const { canvas, calls } = fixture();
   const renderer = new GlowRenderer(canvas);
   renderer.resize(1920, 1080);
