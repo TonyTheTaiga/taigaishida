@@ -6,6 +6,7 @@ steps:
     args:
       - -c
       - |
+        set -euo pipefail
         rustup target add wasm32-unknown-unknown
         cargo install wasm-pack
         wasm-pack build crates/fireworks-wasm --target web --out-dir ../../src/lib/fireworks-wasm
@@ -15,9 +16,12 @@ steps:
     args:
       - -lc
       - |
-        npm i -g pnpm
+        set -euo pipefail
+        # Pin pnpm: newer majors no longer read package.json's "pnpm" field
+        # and reject this lockfile.
+        npm i -g pnpm@10.34.6
         pnpm install --frozen-lockfile
-        npx vite build
+        pnpm exec vite build
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
