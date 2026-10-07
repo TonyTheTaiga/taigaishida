@@ -4,7 +4,7 @@
 
 This is a Svelte 5/SvelteKit personal site with a Rust/WebAssembly fireworks engine.
 
-- `src/routes/+page.svelte` owns the full-viewport Glow canvas, diagnostics, and animation loop; `+layout.svelte` provides shared layout.
+- `src/routes/+page.svelte` owns the full-viewport Glow canvas, show selection (desktop or mobile), and animation loop; `+layout.svelte` provides shared layout.
 - `src/app.css` contains global styles; `src/lib/` holds shared modules and bundled assets.
 - `crates/fireworks-wasm/src/lib.rs` implements the simulation and exported WASM API.
 - `static/` contains directly served assets, including favicons and `robots.txt`.
