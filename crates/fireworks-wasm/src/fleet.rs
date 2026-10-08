@@ -51,7 +51,7 @@ impl Barge {
         )
     }
 
-    fn blocks(&self) -> Vec<Block> {
+    fn blocks(&self) -> [Block; BLOCKS_PER_BARGE] {
         let (x, z) = (self.x, self.z);
         let hull = Block::new(
             Vec3::new(x, 0.0, z),
@@ -59,45 +59,50 @@ impl Barge {
             [0.09, 0.095, 0.1],
         );
         let deck = FREEBOARD;
-        let mut blocks = vec![hull];
         // Mortar racks and cake boxes in four bays.
-        for bay in [-0.66, -0.22, 0.22, 0.66] {
-            blocks.push(Block::new(
-                Vec3::new(x + bay * LENGTH * 0.5, deck, z),
+        let bay = |along: f64| {
+            Block::new(
+                Vec3::new(x + along * LENGTH * 0.5, deck, z),
                 Vec3::new(6.0, 1.0, 7.0),
                 [0.32, 0.26, 0.19],
-            ));
-        }
-        // The firing-control container, at the end away from the tug.
-        blocks.push(Block::new(
-            Vec3::new(x - self.tug * (LENGTH * 0.5 - 3.2), deck, z + 1.5),
-            Vec3::new(5.0, 2.4, 2.4),
-            [0.42, 0.43, 0.42],
-        ));
-        // The tug: hull, wheelhouse, funnel, and mast.
+            )
+        };
         let heading = -self.tug;
         let tx = x + self.tug * (LENGTH * 0.5 + 8.5);
-        blocks.push(Block::new(
-            Vec3::new(tx, 0.0, z),
-            Vec3::new(12.0, 1.1, 4.4),
-            [0.2, 0.05, 0.04],
-        ));
-        blocks.push(Block::new(
-            Vec3::new(tx + heading * 1.5, 1.1, z),
-            Vec3::new(3.6, 2.6, 3.4),
-            [0.5, 0.5, 0.47],
-        ));
-        blocks.push(Block::new(
-            Vec3::new(tx - heading * 1.4, 1.1, z),
-            Vec3::new(1.0, 2.6, 1.0),
-            [0.06, 0.05, 0.05],
-        ));
-        blocks.push(Block::new(
-            Vec3::new(tx + heading * 1.5, 3.7, z),
-            Vec3::new(0.3, 3.4, 0.3),
-            [0.3, 0.3, 0.3],
-        ));
-        blocks
+        [
+            hull,
+            bay(-0.66),
+            bay(-0.22),
+            bay(0.22),
+            bay(0.66),
+            // The firing-control container, at the end away from the tug.
+            Block::new(
+                Vec3::new(x - self.tug * (LENGTH * 0.5 - 3.2), deck, z + 1.5),
+                Vec3::new(5.0, 2.4, 2.4),
+                [0.42, 0.43, 0.42],
+            ),
+            // The tug: hull, wheelhouse, funnel, and mast.
+            Block::new(
+                Vec3::new(tx, 0.0, z),
+                Vec3::new(12.0, 1.1, 4.4),
+                [0.2, 0.05, 0.04],
+            ),
+            Block::new(
+                Vec3::new(tx + heading * 1.5, 1.1, z),
+                Vec3::new(3.6, 2.6, 3.4),
+                [0.5, 0.5, 0.47],
+            ),
+            Block::new(
+                Vec3::new(tx - heading * 1.4, 1.1, z),
+                Vec3::new(1.0, 2.6, 1.0),
+                [0.06, 0.05, 0.05],
+            ),
+            Block::new(
+                Vec3::new(tx + heading * 1.5, 3.7, z),
+                Vec3::new(0.3, 3.4, 0.3),
+                [0.3, 0.3, 0.3],
+            ),
+        ]
     }
 
     /// Navigation and anchor lights: (position, colour, intensity).
@@ -138,6 +143,7 @@ impl Barge {
 }
 
 pub const LAMPS_PER_BARGE: usize = 6;
+const BLOCKS_PER_BARGE: usize = 10;
 
 /// An axis-aligned box standing on `base`.
 struct Block {
@@ -225,18 +231,25 @@ fn linear(rgb: Rgb) -> [f64; 3] {
     [rgb.0, rgb.1, rgb.2].map(|c| (c as f64).max(0.0).powf(2.2))
 }
 
-/// Irradiance on each face orientation of each barge, linear RGB.
+/// Irradiance on each face orientation of each barge (linear RGB) and the
+/// order to paint them in. Kept between frames, so once its buffers have
+/// grown to the fleet's size the fleet pass allocates nothing.
+#[derive(Default)]
 pub struct Light {
     barges: Vec<[[f64; 3]; 5]>,
+    order: Vec<usize>,
 }
 
 impl Light {
     pub fn gather<'a>(
+        &mut self,
         fleet: &[Barge],
         stars: impl Iterator<Item = &'a Star>,
         puffs: &[Puff],
-    ) -> Self {
-        let mut barges = vec![[AMBIENT; 5]; fleet.len()];
+    ) {
+        self.barges.clear();
+        self.barges.resize(fleet.len(), [AMBIENT; 5]);
+        let barges = &mut self.barges;
         let mut add = |at: Vec3, rgb: [f64; 3], luminance: f64| {
             for (barge, light) in fleet.iter().zip(barges.iter_mut()) {
                 let to = at.sub(Vec3::new(barge.x, FREEBOARD, barge.z));
@@ -264,20 +277,21 @@ impl Light {
                 FLASH_LUMINANCE * puff.intensity * puff.fraction().powi(3),
             );
         }
-        Self { barges }
     }
 }
 
-pub fn render(fleet: &[Barge], light: &Light, camera: &Camera, frame: &mut Frame) {
+/// Draw the fleet lit by the last `gather`.
+pub fn render(fleet: &[Barge], light: &mut Light, camera: &Camera, frame: &mut Frame) {
     let eye = camera.eye();
     // Paint far vessels first, and within a vessel, far blocks first.
-    let mut order: Vec<usize> = (0..fleet.len()).collect();
-    order.sort_by(|&a, &b| {
+    light.order.clear();
+    light.order.extend(0..fleet.len());
+    light.order.sort_by(|&a, &b| {
         let da = Vec3::new(fleet[a].x, 0.0, fleet[a].z).sub(eye).length();
         let db = Vec3::new(fleet[b].x, 0.0, fleet[b].z).sub(eye).length();
         db.total_cmp(&da)
     });
-    for index in order {
+    for &index in &light.order {
         let barge = &fleet[index];
         let irradiance = &light.barges[index];
         let mut blocks = barge.blocks();
@@ -296,10 +310,8 @@ pub fn render(fleet: &[Barge], light: &Light, camera: &Camera, frame: &mut Frame
                 if normal.x * toward.x + normal.y * toward.y + normal.z * toward.z <= 0.0 {
                     continue;
                 }
-                let Some(projected) = corners
-                    .iter()
-                    .map(|c| camera.project(c.x, c.y, c.z).map(|(x, y, _)| (x, y)))
-                    .collect::<Option<Vec<_>>>()
+                let [Some(a), Some(b), Some(c), Some(d)] =
+                    corners.map(|c| camera.project(c.x, c.y, c.z).map(|(x, y, _)| (x, y)))
                 else {
                     continue;
                 };
@@ -307,8 +319,8 @@ pub fn render(fleet: &[Barge], light: &Light, camera: &Camera, frame: &mut Frame
                 if frame.mesh.len() / crate::render::MESH_STRIDE + 6 > MAX_VERTICES {
                     return;
                 }
-                frame.triangle([projected[0], projected[1], projected[2]], radiance);
-                frame.triangle([projected[0], projected[2], projected[3]], radiance);
+                frame.triangle([a, b, c], radiance);
+                frame.triangle([a, c, d], radiance);
             }
         }
         for (at, colour, intensity) in barge.lamps() {
@@ -358,12 +370,17 @@ mod tests {
     #[test]
     fn bursts_light_the_hull_by_the_inverse_square_law() {
         let fleet = [barge()];
-        let dark = Light::gather(&fleet, std::iter::empty(), &[]);
+        let lit = |stars: &[&Star]| {
+            let mut light = Light::default();
+            light.gather(&fleet, stars.iter().copied(), &[]);
+            light
+        };
+        let dark = lit(&[]);
         let deck = |x: f64, y: f64, z: f64| Vec3::new(x, FREEBOARD + y, z);
         let near = Star::new(FLARE, 1.0, deck(0.0, 100.0, -50.0), Vec3::default());
         let far = Star::new(FLARE, 1.0, deck(0.0, 200.0, -100.0), Vec3::default());
-        let lit_near = Light::gather(&fleet, std::iter::once(&near), &[]);
-        let lit_far = Light::gather(&fleet, std::iter::once(&far), &[]);
+        let lit_near = lit(&[&near]);
+        let lit_far = lit(&[&far]);
         // Per unit of each star's own output, which flutters.
         let gain = |light: &Light, face: usize, star: &Star| {
             (light.barges[0][face][1] - dark.barges[0][face][1]) / star.light().unwrap().1
@@ -382,9 +399,10 @@ mod tests {
     fn only_camera_facing_faces_are_drawn() {
         let camera = Camera::new(137, 50, Stage::DESKTOP);
         let fleet = [barge()];
-        let light = Light::gather(&fleet, std::iter::empty(), &[]);
+        let mut light = Light::default();
+        light.gather(&fleet, std::iter::empty(), &[]);
         let mut frame = Frame::new(64, 0, MAX_VERTICES);
-        render(&fleet, &light, &camera, &mut frame);
+        render(&fleet, &mut light, &camera, &mut frame);
         let vertices = frame.mesh.len() / crate::render::MESH_STRIDE;
         assert_eq!(vertices % 3, 0);
         // Ten blocks: the front and top of each, plus one end of the

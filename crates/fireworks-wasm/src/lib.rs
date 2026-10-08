@@ -91,6 +91,7 @@ pub struct FireworkEngine {
     puffs: Particles<Puff>,
     pending_stars: Vec<Star>,
     pending_shells: Vec<Shell>,
+    light: fleet::Light,
     venue: Venue,
     program: Program,
     /// Seconds into the current loop of the programme.
@@ -126,6 +127,7 @@ impl FireworkEngine {
             puffs: Particles::new(budget.puffs),
             pending_stars: Vec::new(),
             pending_shells: Vec::new(),
+            light: fleet::Light::default(),
             venue,
             program: venue.program(),
             time: 0.0,
@@ -222,12 +224,17 @@ impl FireworkEngine {
             .shells
             .iter()
             .flat_map(|shell| shell.attached.iter().flatten());
-        let light = fleet::Light::gather(
+        self.light.gather(
             self.venue.fleet(),
             self.stars.items.iter().chain(attached.clone()),
             &self.puffs.items,
         );
-        fleet::render(self.venue.fleet(), &light, &camera, &mut self.frame);
+        fleet::render(
+            self.venue.fleet(),
+            &mut self.light,
+            &camera,
+            &mut self.frame,
+        );
         for puff in &self.puffs.items {
             render::puff(puff, &camera, &mut self.frame);
         }
