@@ -13,3 +13,8 @@ js-sys = "0.3"
 [profile.release]
 opt-level = "s"
 lto = true
+
+# The show tests simulate whole programmes at 60 Hz; unoptimised, they take
+# minutes.
+[profile.test]
+opt-level = 3
