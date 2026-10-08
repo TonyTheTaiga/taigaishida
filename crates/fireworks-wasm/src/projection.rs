@@ -1,10 +1,12 @@
 //! Perspective camera for the shared XYZ fireworks simulation.
 
+use crate::particle::Vec3;
+
 /// Grid cells are 14 px wide and 18 px tall; vertical grid units are scaled so
 /// a metre covers the same number of pixels in both directions.
 const CELL_ASPECT: f64 = 14.0 / 18.0;
 
-/// The patch of sky and barge a show is composed for.
+/// The patch of sky and fleet a show is composed for.
 #[derive(Clone, Copy)]
 pub struct Stage {
     /// Metres visible across the reference plane on wide screens.
@@ -13,19 +15,21 @@ pub struct Stage {
     pub sky: f64,
 }
 
+/// Share of the frame given to sky; the water and beach fill the rest.
+pub const SKY_FRACTION: f64 = 0.8;
+
 impl Stage {
-    /// Panoramic: five lanes 150 m apart plus a 7-gō crown's 115 m reach either
-    /// side, under a kamuro crown that tops out near 360 m.
+    /// Panoramic: the 480 m firing line plus its tugs, under the tops of
+    /// 5- and 6-gō flowers. Larger shells open past the top of the frame, as
+    /// they do for spectators close to the water.
     pub const DESKTOP: Stage = Stage {
-        width: 540.0,
-        sky: 360.0,
+        width: 520.0,
+        sky: 300.0,
     };
-    /// Portrait-first: one centred column of shells. On a phone the width and
-    /// the 360 m of sky frame together, and a 7-gō flower spans three
-    /// quarters of the screen.
+    /// Portrait-first: three barges filling the width of a phone.
     pub const MOBILE: Stage = Stage {
-        width: 220.0,
-        sky: 360.0,
+        width: 190.0,
+        sky: 300.0,
     };
 }
 
@@ -45,12 +49,15 @@ impl Camera {
         let cols = cols.max(1) as f64;
         let rows = rows.max(1) as f64;
         // A natural ~45° field of view; framing the stage then puts the viewer
-        // roughly a kilometre from the barge, where spectators stand.
+        // 450–750 m from the barges, where waterfront crowds gather, well
+        // beyond NFPA 1123's 70 ft per inch of shell.
         let focal_length = cols.max(rows).max(60.0) * 1.2;
-        // The sky occupies the upper 75% of the frame; fit the same physical
-        // stage on every viewport by moving the viewer, not resizing shells.
-        let framing = (cols / stage.width).min(rows * 0.75 / CELL_ASPECT / stage.sky);
-        let pitch = ((rows * 0.25) / (focal_length * CELL_ASPECT)).atan();
+        // Fit the same physical stage on every viewport by moving the
+        // viewer, not resizing shells.
+        let framing =
+            (cols / stage.width).min(rows * SKY_FRACTION / CELL_ASPECT / stage.sky);
+        // Tilt up until the horizon sits SKY_FRACTION of the way down.
+        let pitch = ((rows * (SKY_FRACTION - 0.5)) / (focal_length * CELL_ASPECT)).atan();
         Self {
             center_x: cols * 0.5,
             eye_height: 6.0,
@@ -83,6 +90,29 @@ impl Camera {
         ))
     }
 
+    /// The viewer's eye in world metres; the camera looks toward +Z.
+    pub fn eye(&self) -> Vec3 {
+        Vec3::new(0.0, self.eye_height, -self.distance)
+    }
+
+    /// CSS pixels covered by one metre at a point whose perspective ratio
+    /// `project` returned. Grid cells are 14 px wide.
+    pub fn pixels_per_metre(&self, ratio: f64) -> f64 {
+        self.framing * ratio * 14.0
+    }
+
+    /// Grid row of the horizon: where the water meets the sky at infinity.
+    pub fn horizon(&self) -> f64 {
+        self.screen_y + self.focal_length * self.pitch.tan() * CELL_ASPECT
+    }
+
+    /// Grid row where the water surface crosses the reference plane under
+    /// the barges. Bursts on that plane reflect about this line.
+    pub fn waterline(&self) -> f64 {
+        self.project(0.0, 0.0, 0.0)
+            .map_or(self.horizon(), |(_, y, _)| y)
+    }
+
     /// Convert a screen-grid target on the reference plane (z=0) to world metres.
     #[cfg(test)]
     pub fn world_at_screen(&self, x: f64, y: f64) -> (f64, f64) {
@@ -104,11 +134,12 @@ mod tests {
     #[test]
     fn horizon_matches_the_rendered_water_line_below_elevated_bursts() {
         let camera = Camera::new(100, 60, Stage::DESKTOP);
-        let horizon = camera.screen_y + camera.focal_length * camera.pitch.tan() * CELL_ASPECT;
+        let horizon = camera.horizon();
+        assert!(camera.waterline() > horizon);
         let near_plane = camera.project(0.0, 0.0, -100.0).unwrap().1;
         let far_plane = camera.project(0.0, 0.0, 100.0).unwrap().1;
         let shell = camera.project(0.0, 40.0, 0.0).unwrap().1;
-        assert!((horizon - 45.0).abs() < 1e-10);
+        assert!((horizon - 60.0 * SKY_FRACTION).abs() < 1e-10);
         assert!(near_plane > far_plane);
         assert!(shell < horizon);
         assert!(camera.project(0.0, 0.0, 0.0).unwrap().1 > horizon);
@@ -133,7 +164,7 @@ mod tests {
     #[test]
     fn every_viewport_frames_the_same_stage() {
         for stage in [Stage::DESKTOP, Stage::MOBILE] {
-            for (cols, rows) in [(100, 60), (27, 46), (180, 50), (60, 21)] {
+            for (cols, rows) in [(100, 60), (27, 46), (180, 50), (60, 21), (102, 50)] {
                 let camera = Camera::new(cols, rows, stage);
                 let (left, _) = camera.world_at_screen(0.0, rows as f64 * 0.5);
                 let (_, top) = camera.world_at_screen(cols as f64 * 0.5, 0.0);
@@ -146,6 +177,7 @@ mod tests {
     #[test]
     fn viewer_stands_where_spectators_do() {
         // Desktop, ultrawide, phone portrait, and phone landscape viewports.
+        // An ultrawide window stands back to fit the same sky.
         for (cols, rows, stage) in [
             (91, 44, Stage::DESKTOP),
             (180, 50, Stage::DESKTOP),
@@ -154,7 +186,7 @@ mod tests {
         ] {
             let distance = Camera::new(cols, rows, stage).distance;
             assert!(
-                (500.0..=1800.0).contains(&distance),
+                (400.0..=1400.0).contains(&distance),
                 "{cols}x{rows} viewer at {distance} m"
             );
         }

@@ -2,7 +2,8 @@
 
 A small Rust particle core compiled into the existing fireworks WASM module.
 There are no new runtime dependencies. JavaScript drives one batched `tick()`
-call and uploads packed point and trail buffers; individual particles stay in WASM.
+call and uploads packed point, trail, and mesh buffers; individual particles
+stay in WASM.
 
 ## Modules
 
@@ -13,49 +14,69 @@ directly; those follow from measured inputs (see [Calibration](#calibration)).
 - `src/chemistry.rs`: the smallest unit. A `Composition` has a density, an
   in-flight burn rate, a light source (emitter bands such as SrCl red, BaCl
   green, CuCl blue, Na yellow, or incandescence at a temperature), optional
-  `SparkFuel`, and an optional `Effect` (strobe, thrust, split charge). A star
+  `SparkFuel`, and an optional `Effect` (strobe, thrust, split charge, the
+  tumbling flutter of a falling leaf, or a gerb's fixed upward jet). A star
   recipe is a list of `Layer`s, from the outside in. Colours are computed from
   spectra with the CIE 1931 colour-matching functions, partially adapted the
-  way a dark-adapted audience sees (CIECAM02), and encoded as sRGB.
-  Incandescent luminance is the Planck spectrum weighted by the eye's ȳ(λ).
+  way a dark-adapted audience sees (CIECAM02), and encoded as sRGB. Aqua,
+  lemon, and pink come from mixed emitters (BaCl with a tenth of CuCl; Na with
+  a quarter of BaCl; SrCl with traces of CuCl and Na). Incandescent luminance
+  is the Planck spectrum weighted by the eye's ȳ(λ).
 - `src/star.rs`: `Star` is a layered sphere whose flame front regresses inward.
   Mass, diameter, drag, light (∝ burning area), spark output (∝ mass burned),
   and thrust (mass flow × exhaust speed) change continuously. Crossing a layer
   boundary changes colour or fires that layer's effect; a split charge breaks
   the remaining core into equal fragments, conserving mass and momentum.
-  `Spark` is an incandescent particle: it smoulders, burns, and then cools by
-  conduction (air conductivity at the film temperature) and grey-body
+  Hand-made stars differ: each varies in burn rate (about 6%) and brightness
+  (about 10%), flutters by a few percent, and lights up to 0.1 s after the
+  burst. `Spark` is an incandescent particle: it smoulders, burns, and then
+  cools by conduction (air conductivity at the film temperature) and grey-body
   radiation, with its own heat capacity. Its colour and brightness come only
-  from its temperature. `Puff` covers burst flashes and drifting smoke.
+  from its temperature. `Puff` covers burst and muzzle flashes and smoke that
+  spreads as √t and lingers for about 20 s, long enough for later bursts to
+  light it.
 - `src/shell.rs`: `ShellDesign` combines a casing, a lift charge, a bursting
   charge with its heat of explosion, an optional rising comet, and a payload
-  of stars or sub-shells packed at fractional radii, as spheres or rings. The
-  lift sets the muzzle speed (½·M·v² = η·m·Q) and drag sets the burst height;
-  the burst shares η·m·Q among the petals, each moving in proportion to its
-  packing radius. The time fuse glows on the way up and is consumed by the
-  burst.
-- `src/designs.rs`: the ten shells, described below.
+  of stars or sub-shells packed at fractional radii. Payloads open as spheres,
+  rings, sectors and slices (lit in turn by dark delays), flat picture
+  templates, or a half-dome on the water. The lift sets the muzzle speed
+  (½·M·v² = η·m·Q) and drag sets the burst height; the burst shares η·m·Q
+  among the petals, each moving in proportion to its packing radius. No two
+  bursts match: the charge's strength varies, the casing tears unevenly, the
+  flower comes out a little flattened or drawn out, and about one star in
+  fifty never lights. Pattern shells load upright and mostly face the
+  audience; water shells burst when they land.
+- `src/comet.rs`: shell-less devices. A comet is one large star shot from its
+  own tube; a mine throws loose stars from a mortar as a cone; a gerb never
+  leaves its tube and jets sparks upward.
+- `src/designs.rs`: every shell and device, described below.
+- `src/fleet.rs`: the firing barges and their tugs, at about half real scale.
+  Each face of every hull gathers the light of every burning star and flash by
+  the inverse-square law and Lambert's cosine.
 - `src/particle.rs`: 3D bodies with gravity, wind, and Reynolds-dependent drag
   in air that thins with altitude. Drag is integrated implicitly so 0.2 mm
   sparks stay stable. Also holds the fixed-step clock and bounded storage.
 - `src/projection.rs`: a perspective camera with a ~45° field of view. Metres
-  are square on screen, and framing fits the show's stage (540 m × 360 m on
-  desktop, 220 m × 360 m on phones) to any viewport, which puts the viewer
-  0.5–1.8 km from the barge, where spectators stand.
-- `src/show.rs`: the two show programmes, described below. Cues name a burst
-  time, a mortar position, and a tilt; launch times are worked back from each
-  shell's predicted flight, and the time fuse is cut to its apex.
+  are square on screen, the sky fills the top 80% of the frame, and framing
+  fits the show's stage (520 m × 300 m on desktop, 190 m × 300 m on phones) to
+  any viewport, which puts the viewer 0.45–1.3 km from the barges.
+- `src/show.rs`: the two show programmes, described below, and the cue-sheet
+  vocabulary they are written in.
+- `src/render.rs`: packs light into the output buffers.
 - `src/trail.rs`: eight-sample motion history (persistence of vision) per star.
-- `src/lib.rs`: the exported engine, the simulation step, and render output.
+- `src/lib.rs`: the exported engine and the simulation step.
 
 Physics uses metres, kilograms, kelvin, and seconds. `tick(seconds)` runs up to
 three 1/60 s steps. Each simulated spark stands for many real ones. Once half
 the spark budget is in use, spark sampling thins evenly instead of starving
 whichever stars update last.
 
-## The ten shells
+## Shells and devices
 
-Sizes are Japanese gō: 4-gō is 114 mm, 5-gō 142 mm, 6-gō 171 mm, 7-gō 199 mm.
+Sizes are Japanese gō: 3-gō is 86 mm, 4-gō 114 mm, 5-gō 142 mm, 6-gō 171 mm,
+7-gō 199 mm.
+
+The ten signature shells:
 
 1. **Yae-zaki chrysanthemum** (7-gō): 220 outer 18 mm stars leave a charcoal
    tail, then burn red → green → blue. A green-into-violet middle petal and a
@@ -79,9 +100,34 @@ Sizes are Japanese gō: 4-gō is 114 mm, 5-gō 142 mm, 6-gō 171 mm, 7-gō 199 m
 10. **Ghost shell** (7-gō): dark delay layers between violet, green, and
     orange. The sphere vanishes and reappears in a new colour, twice.
 
-Star mines use smaller shells: 3-gō peonies (86 mm, Shimizu's standard 150 ×
-9 mm stars) in red, green, blue, silver, violet, yellow, and red-to-green, and
-a 4-gō gold chrysanthemum of all-charcoal stars.
+Modern styles from recent Japanese competitions and Western pyromusicals:
+
+- **Jikansa-botan** (5-gō): four quarters behind dark delays 0.36 s apart
+  light around the clock in red, lemon, aqua, and pink, then go out together.
+- **Slide-botan** (6-gō): six slices light 0.25 s apart, so a band of aqua
+  sweeps across the flower and comes back in pink.
+- **Yondan henka-giku** (7-gō): a four-core changing chrysanthemum whose outer
+  petal ends in white strobe around a white-strobe heart.
+- **Strobe pistils** (4-gō): red, pink, purple, or aqua petals around a
+  shimmering 12 Hz white strobe core.
+- **Katamono** (4-gō): hearts, smiley faces, stars, and butterflies, fired in
+  twos and threes as makers do, since some open edge-on.
+- **Double ring** (4-gō), **spider** (5-gō straight gold lines), **horsetail**
+  (5-gō falling plume), **time rain** (6-gō sizzling glitter), **falling
+  leaves** (5-gō tumbling flakes that fall at about 4 m/s), **bees** (4-gō
+  corkscrewing pierced stars), and **titanium salutes** (4-gō flash and white
+  sparks).
+- **Colpi** (5-gō): an Italian multi-break, red then green then a salute, each
+  break lit by its own fuse 0.7–0.8 s after the last.
+- **Brocade crown with coloured tips** (6-gō) and **water fans**: water shells
+  lobbed from the barges that open on the surface as half-domes.
+
+Star mines use 3-gō peonies (Shimizu's standard 150 × 9 mm stars) in eight
+colours and a 4-gō gold chrysanthemum. From the decks: 25 mm silver, gold,
+crossette, and crackling comets and 16 mm strobe comets (lifts of 3% of their
+weight, about 89 m/s); 18 mm pearls from candles (about 45 m/s); colour,
+crackling, silver, willow, and strobe mines (about 62 m/s); and silver and
+gold gerbs whose 1.5 mm titanium granules jet about 20 m.
 
 ## The two shows
 
@@ -90,43 +136,62 @@ a screen under 768 px on its short side) get the mobile show, and tablets and
 computers get the desktop show. Add `?show=mobile` or `?show=desktop` to the
 URL to preview either.
 
-|            | Desktop                                     | Mobile                                |
-| ---------- | ------------------------------------------- | ------------------------------------- |
-| Stage      | 540 m × 360 m, mortars across a 450 m barge | 220 m × 360 m, one centred column     |
-| Length     | 158 s loop, ~175 shells                     | 87 s loop, ~53 shells                 |
-| Budget     | 6,000 stars, 26,000 sparks, 800 puffs       | 3,000 stars, 12,000 sparks, 400 puffs |
-| Frame cost | 0.18 ms median, 2.7 ms p95 (Node)           | 0.10 ms median, 1.4 ms p95 (Node)     |
+Modern displays keep every layer of the sky busy (Macy's fires about 2,000
+effects a minute) and finish with their densest minute. Both shows layer
+ground effects low, star-mine chases and pistils in the middle, and feature
+shells high, over a bed of pearls, mines, and comets that never pauses. A test
+fails if the sky goes more than 0.6 s without a new effect.
 
-The desktop show runs in six acts:
+|            | Desktop                                  | Mobile                                |
+| ---------- | ---------------------------------------- | ------------------------------------- |
+| Fleet      | five barges 110 m apart (a 480 m line)   | three barges 55 m apart               |
+| Length     | 179 s loop, about 2,300 cues             | 105 s loop, about 760 cues            |
+| Pace       | 13.4 effects/s, 16.9/s in the finale     | 8.3/s, 8.5/s in the finale            |
+| Budget     | 10,000 stars, 36,000 sparks, 2,000 puffs | 4,500 stars, 15,000 sparks, 900 puffs |
+| Frame cost | 1.6 ms median, 4.8 ms p95 (Node)         | 0.9 ms median, 2.0 ms p95 (Node)      |
 
-1. **Opening**: a five-shell silver salute, red and blue fans from the wings,
-   three Yae-zaki across the barge, a gold sweep, and twin crossettes.
-2. **Tanpatsu**: the signature shells one at a time, each given room to
-   finish, ending on a lone kamuro.
-3. **Star mine**: peony sweeps in both directions, a five-crossette fan, colour
-   call and response from the wings, a gold salvo, and a rapid mine.
-4. **Garden**: layered heights, including a five-tier ladder in which 3- to
-   7-gō shells fired from one spot burst together at 125–250 m.
-5. **Crescendo**: three ghosts, twin twinkling crowns over a silver fan, a
-   five-shell Yae-zaki sweep, crossette fans, and an accelerating mine.
-6. **Finale**: full-width salvos, then a seven-shell kamuro curtain that hangs
-   until the loop restarts.
+The desktop show runs in five sections:
 
-The mobile show stacks by height instead of spreading by width: centred solos
-with small shells layered under long-lived ones, a three-tier ladder, narrow
-star-mine sweeps, paired Yae-zaki, and a three-shell kamuro that fills the
-portrait frame. Each shell follows the last as it fades.
+1. **Overture**: gerbs light the decks, comet chases race the line both ways,
+   fan cakes fire from every barge, and pistils, four-core chrysanthemums,
+   hearts, and salutes open over Z cakes and a rainbow star mine.
+2. **Colour waves**: rainbow chases sweep the line in alternate directions,
+   pistils answer, and a feature shell opens every four seconds (slide and
+   time-difference peonies, butterflies, Saturns, ghosts, stars, smileys)
+   over candles of pearls.
+3. **Showcase**: the signature shells, spiders, horsetails, time rain,
+   leaves, and bees high, over a pulse of 4-gō shells, water fans, and mines.
+4. **Pulse**: fan cakes hop between barges every 1.6 s over snaking Z cakes,
+   V chases open from the centre, colpi climb in steps, and an accelerating
+   star mine ends on a wall of salutes.
+5. **Gold and silver, then the finale**: hanging crowns and water fans; then
+   chases every two seconds, the densest star mine, crossette fans from every
+   barge, salute chases, a strobe wall, and five kamuro left hanging.
+
+The mobile show follows the same sections, centred and condensed for a
+portrait screen.
 
 ## Output buffers
 
-The Glow renderer reads `f32` points with eight values each:
-`[x, y, radius, red, green, blue, alpha, kind]`, where kind is 0 (light),
-1 (smoke), or 2 (detonation flash). Trail segments have ten values each:
-`[x1, y1, x2, y2, width, red, green, blue, alpha, reserved]`. Stars draw four
-history segments. Each spark draws one streak covering 80 ms of motion, and
-very bright sparks (glitter, microstar pops) also draw a point. Lengths count
-floats, not bytes. Recreate output views after `tick()` or `resize()`, because
-WASM memory can move.
+Layouts are documented in `src/render.rs` and mirrored by
+`src/lib/renderers/glow.ts`. Lengths count floats, not bytes.
+
+- Points, eight values: `[x, y, radius_px, red, green, blue, intensity, kind]`.
+  Kind 0 is a burning emitter, 1 smoke (radius is the parcel's size, intensity
+  its optical depth), 2 a flash, and 3 a lamp. Colours are sRGB 0–255;
+  intensity is linear light, unbounded.
+- Trail segments, ten values: `[x1, y1, x2, y2, width_px, red, green, blue,
+intensity, reserved]`. Stars draw four history segments; each spark draws
+  one streak covering 80 ms of motion, and very bright sparks also draw a
+  point.
+- Mesh vertices, six values: `[x, y, red, green, blue, coverage]`, linear
+  radiance, three per triangle, back to front.
+
+The renderer accumulates light in a half-float target (8-bit at 1/16 scale
+where the GPU cannot render floats), blooms it through a seven-level pyramid,
+lights the smoke and air with the smoothed result, reflects the show in the
+water about the waterline beneath the barges, and tone maps once. Recreate
+output views after `tick()` or `resize()`, because WASM memory can move.
 
 ## Calibration
 
@@ -152,12 +217,16 @@ WASM memory can move.
 | Air                                  | 1.204 kg/m³, 8.4 km scale height, μ = 1.81e-5 Pa·s                                      | standard atmosphere                                                                                                                                                                                     |
 
 Estimates, chosen within plausible ranges because no measurement was found:
-green, yellow, and orange burn rates; glitter and microstar timings and flash
-temperatures; the twinkler's flash fraction; fish-star exhaust speed; the
-crossette split efficiency; the crossette, palm, and small-flower charges;
-relative luminous intensities; and the number of sparks sampled per gram.
-Light shells use a lift of 6% of their mass, matching the 5–8% in Shimizu
-Table 27. The wind is a constant 2.2 m/s with no shear.
+green, yellow, orange, aqua, lemon, and pink burn rates; glitter, microstar,
+and time-rain timings and flash temperatures; the twinkler's flash fraction
+and the 12 Hz white strobe (strobes run at 7–20 Hz); fish- and bee-star
+exhaust speeds; the crossette split efficiency; the crossette, palm, spider,
+horsetail, leaf, bee, salute, colpi, water-shell, and small-flower charges;
+the leaf's effective density; gerb granule sizes; comet, pearl, and mine
+lifts; the variation between stars and between bursts; smoke spread and
+lifetime; relative luminous intensities; and the number of sparks sampled per
+gram. Light shells use a lift of 6% of their mass, matching the 5–8% in
+Shimizu Table 27. The wind is a constant 2.2 m/s with no shear.
 
 ## Browser API
 
@@ -170,7 +239,10 @@ const points = new Float32Array(
   exports.memory.buffer,
   engine.points_ptr(),
   engine.points_len(),
-);
+); // likewise trails_ptr/len and mesh_ptr/len
+engine.horizon(); // grid rows: where sky meets water
+engine.waterline(); // grid rows: the water beneath the barges
+engine.star_count(); // also spark_count, smoke_count, shell_count
 engine.resize(newCols, newRows);
 engine.free(); // release when unmounting
 ```
@@ -195,15 +267,17 @@ Use pnpm 10 with the current lockfile. Native tests use a deterministic RNG.
 They check that every stored colour matches its spectrum, layered mass and
 burn-through, crossette mass and momentum conservation, spark cooling, strobe
 and thrust, each shell's burst height, muzzle speed, climb time, star speed,
-and flower diameter against the published tables above, the viewer distance,
-that every cue bursts on time and inside the frame on its venue's viewports,
-that the mobile show stays in one column without crowding, and that both shows
-loop within budget. Browser verification should cover both shows, resizing and
-rotation, and WASM initialization/cleanup.
+and flower diameter against the published tables above, hull lighting by the
+inverse-square law, the viewer distance, that every cue fires from a barge
+deck and bursts on time and inside the frame on its venue's viewports, that
+both shows feature every signature and modern shell, never leave the sky
+empty for more than 0.6 s, and end densest, and that both loop within budget.
+Browser verification should cover both shows, resizing and rotation, and WASM
+initialization/cleanup.
 
-The renderer tests enforce draw-call and allocation budgets with a mocked GPU;
-they do not measure browser FPS or validate shader output. In full-show WASM
-benchmarks under Node, a desktop frame took 0.18 ms at the median, 2.7 ms at
-the 95th percentile, and at most 3.9 ms on the development machine; a mobile
-frame took 0.10, 1.4, and 1.7 ms. Actual frame rate also depends on the
-browser and GPU.
+The renderer tests enforce draw-call, render-target, and allocation budgets
+with a mocked GPU; they do not measure browser FPS or validate shader output.
+In full-show WASM benchmarks under Node, a desktop frame took 1.6 ms at the
+median, 4.8 ms at the 95th percentile, and at most 6.2 ms on the development
+machine; a mobile frame took 0.9, 2.0, and 2.8 ms. Actual frame rate also
+depends on the browser and GPU.

@@ -45,7 +45,6 @@ impl Vec3 {
         Vec3::new(self.x * k, self.y * k, self.z * k)
     }
 
-    #[cfg(test)]
     pub fn dot(self, o: Vec3) -> f64 {
         self.x * o.x + self.y * o.y + self.z * o.z
     }

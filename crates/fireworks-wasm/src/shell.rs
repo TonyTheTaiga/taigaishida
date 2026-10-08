@@ -7,7 +7,7 @@
 use crate::chemistry::{remaining_mass, Layer, StarRecipe, BLACK_POWDER_HEAT, TIME_FUSE};
 use crate::particle::{Body, Clock, Particles, Vec3};
 use crate::star::{Emission, Puff, Star};
-use crate::{pick, rand, random_unit};
+use crate::{gauss, pick, rand, rand_f64, random_unit};
 
 /// Fraction of the bursting charge's heat that becomes star motion. Shimizu
 /// (Table 19) measured 63.5 m/s stars from a 6-inch perchlorate-burst shell;
@@ -30,6 +30,29 @@ pub enum Pattern {
     Sphere,
     /// Stars packed around the shell's equator (rings, Saturn).
     Ring,
+    /// One of `of` equal wedges around the shell's axis. Each wedge's stars
+    /// carry a different dark delay, so a jikansa-botan lights quarter by
+    /// quarter around the clock.
+    Sector { index: usize, of: usize },
+    /// One of `of` parallel slices across the shell; lit in turn, a
+    /// slide-botan's face seems to slide across the sky.
+    Slice { index: usize, of: usize },
+    /// A flat picture (katamono): stars laid out on a unit template in the
+    /// shell's equatorial plane, each thrown at a speed proportional to its
+    /// distance from the centre so the picture grows without distorting.
+    Template(fn(f64) -> (f64, f64)),
+    /// The upper half of a sphere: a water shell bursting on the surface.
+    Dome,
+}
+
+/// How a shell sits when it bursts.
+#[derive(Clone, Copy, PartialEq)]
+pub enum Orientation {
+    /// Tumbled in flight: rings and pictures read at any angle.
+    Tumbling,
+    /// Loaded upright in the mortar and stabilised by its own spin, as makers
+    /// do for pattern shells: the face mostly turns toward the audience.
+    Upright,
 }
 
 pub enum Payload {
@@ -63,6 +86,10 @@ pub struct ShellDesign {
     /// Optional comet glued to the casing: it rises with the shell and flies
     /// on after the burst (a palm's trunk).
     pub comet: StarRecipe,
+    pub orientation: Orientation,
+    /// A water shell: lobbed from the barge, it floats and bursts on the
+    /// surface instead of on its time fuse.
+    pub water: bool,
 }
 
 /// The burning end of the time fuse, seen as a faint spark trail on the way
@@ -121,6 +148,25 @@ impl ShellDesign {
         body.diameter = self.diameter;
         let mut time = 0.0;
         while time < 30.0 && body.velocity.y > 0.0 {
+            body.step(Clock::STEP_SECONDS);
+            time += Clock::STEP_SECONDS;
+        }
+        (body.position, time)
+    }
+
+    /// A water shell's lob from a mortar tilted `tilt` radians: where it
+    /// lands relative to the mortar, and when.
+    pub fn splashdown(&self, tilt: f64) -> (Vec3, f64) {
+        let speed = self.muzzle_speed();
+        let mut body = Body::new(
+            Vec3::new(0.0, crate::fleet::FREEBOARD, 0.0),
+            Vec3::new(speed * tilt.sin(), speed * tilt.cos(), 0.0),
+            30.0,
+        );
+        body.mass = self.mass();
+        body.diameter = self.diameter;
+        let mut time = 0.0;
+        while time < 30.0 && !(body.position.y <= 0.3 && body.velocity.y < 0.0) {
             body.step(Clock::STEP_SECONDS);
             time += Clock::STEP_SECONDS;
         }
@@ -186,7 +232,11 @@ impl Shell {
         }
         self.body.step(dt);
         self.fuse -= dt;
-        if self.fuse <= 0.0 {
+        if self.design.water && self.body.position.y <= 0.3 && self.body.velocity.y < 0.0 {
+            self.body.position.y = 0.3;
+            self.body.velocity = Vec3::default();
+            Flight::Burst
+        } else if self.fuse <= 0.0 && !self.design.water {
             Flight::Burst
         } else if self.body.position.y <= 0.0 {
             Flight::Lost
@@ -199,18 +249,46 @@ impl Shell {
         let design = self.design;
         let origin = self.body.position;
         let speed = design.burst_speed();
-        // Orient the shell: tilt its axis away from the line of sight so rings
-        // read as ellipses of varying eccentricity.
-        let tilt = rand(0.2, 1.15);
-        let azimuth = rand(0.0, std::f64::consts::TAU);
+        // Orient the shell. A tumbled shell's axis tilts away from the line
+        // of sight so rings read as ellipses of varying eccentricity; an
+        // upright one faces the audience within a few tens of degrees.
+        let (tilt, azimuth) = match design.orientation {
+            Orientation::Tumbling => (rand(0.2, 1.15), rand(0.0, std::f64::consts::TAU)),
+            Orientation::Upright => (rand(0.0, 0.45), rand(0.0, std::f64::consts::TAU)),
+        };
         let pole = Vec3::new(
             tilt.sin() * azimuth.cos(),
             tilt.sin() * azimuth.sin(),
-            tilt.cos(),
+            -tilt.cos(),
         );
-        let (u, v) = pole.basis();
-        let spin = rand(0.0, std::f64::consts::TAU);
+        let (u, v, spin) = match design.orientation {
+            Orientation::Tumbling => {
+                let (u, v) = pole.basis();
+                (u, v, rand(0.0, std::f64::consts::TAU))
+            }
+            // Picture axes: across and up as the audience sees them, rolled
+            // by up to 30°.
+            Orientation::Upright => {
+                let across = Vec3::new(0.0, 1.0, 0.0).cross(pole).normalized().scale(-1.0);
+                let up = pole.cross(across).scale(-1.0);
+                (across, up, rand(-0.5, 0.5))
+            }
+        };
+        let (u, v) = (
+            u.scale(spin.cos()).add(v.scale(spin.sin())),
+            v.scale(spin.cos()).sub(u.scale(spin.sin())),
+        );
         let golden = std::f64::consts::PI * (3.0 - 5.0_f64.sqrt());
+        let fraction = |i: usize| (i as f64 * 0.618_033_988_75).fract();
+        // Hand-packed shells never open perfectly (estimates): the charge's
+        // strength varies by about 6%, the casing tears unevenly so one side
+        // flies up to 12% faster, and the flower comes out a little flattened
+        // or drawn out along a random axis.
+        let strength = (1.0 + 0.06 * gauss()).clamp(0.85, 1.15);
+        let tear = random_unit();
+        let lopsided = rand(0.0, 0.12);
+        let squash = random_unit();
+        let flattening = rand(-0.1, 0.1);
 
         for item in design.payload {
             let (count, position) = match item {
@@ -221,35 +299,81 @@ impl Shell {
                     count, position, ..
                 } => (*count, *position),
             };
+            let pattern = match item {
+                Payload::Stars { pattern, .. } => pattern,
+                Payload::Shells { .. } => &Pattern::Sphere,
+            };
             for i in 0..count {
-                let direction = match item {
-                    Payload::Stars {
-                        pattern: Pattern::Ring,
-                        ..
-                    } => {
-                        let a = spin + i as f64 / count as f64 * std::f64::consts::TAU;
-                        u.scale(a.cos()).add(v.scale(a.sin()))
+                let sphere = |i: usize| {
+                    let z = 1.0 - 2.0 * (i as f64 + 0.5) / count as f64;
+                    let r = (1.0 - z * z).max(0.0).sqrt();
+                    let a = i as f64 * golden;
+                    u.scale(r * a.cos()).add(v.scale(r * a.sin())).add(pole.scale(z))
+                };
+                let jitter = random_unit().scale(0.05);
+                let offset = match *pattern {
+                    Pattern::Sphere => sphere(i).add(jitter).normalized(),
+                    Pattern::Ring => {
+                        let a = i as f64 / count as f64 * std::f64::consts::TAU;
+                        u.scale(a.cos()).add(v.scale(a.sin())).add(jitter).normalized()
                     }
-                    _ => {
+                    Pattern::Sector { index, of } => {
                         let z = 1.0 - 2.0 * (i as f64 + 0.5) / count as f64;
                         let r = (1.0 - z * z).max(0.0).sqrt();
-                        let a = spin + i as f64 * golden;
+                        let a = (index as f64 + fraction(i)) / of as f64 * std::f64::consts::TAU;
                         u.scale(r * a.cos())
                             .add(v.scale(r * a.sin()))
                             .add(pole.scale(z))
+                            .add(jitter)
+                            .normalized()
                     }
+                    Pattern::Slice { index, of } => {
+                        // Equal widths along an axis cut equal areas of a sphere.
+                        let across = -1.0 + 2.0 * (index as f64 + fraction(i)) / of as f64;
+                        let r = (1.0 - across * across).max(0.0).sqrt();
+                        let a = i as f64 * golden;
+                        u.scale(across)
+                            .add(v.scale(r * a.cos()))
+                            .add(pole.scale(r * a.sin()))
+                            .add(jitter)
+                            .normalized()
+                    }
+                    Pattern::Template(shape) => {
+                        let (x, y) = shape((i as f64 + 0.5) / count as f64);
+                        u.scale(x).add(v.scale(y)).add(jitter.scale(0.4))
+                    }
+                    Pattern::Dome => {
+                        let up = Vec3::new(0.0, 1.0, 0.0);
+                        let (a, b) = up.basis();
+                        let y = 1.0 - (i as f64 + 0.5) / count as f64;
+                        let r = (1.0 - y * y).max(0.0).sqrt();
+                        let turn = i as f64 * golden;
+                        a.scale(r * turn.cos())
+                            .add(b.scale(r * turn.sin()))
+                            .add(up.scale(y))
+                            .add(jitter)
+                            .normalized()
+                    }
+                };
+                let direction = offset.normalized();
+                // About one star in fifty never takes fire and falls dark.
+                if rand_f64() < 0.02 {
+                    continue;
                 }
-                .add(random_unit().scale(0.03))
-                .normalized();
-                let start = origin.add(direction.scale(design.diameter * 0.5 * position));
+                let along = direction.dot(squash);
+                let shape = strength
+                    * (1.0 + lopsided * direction.dot(tear))
+                    * (1.0 + flattening * (1.5 * along * along - 0.5))
+                    * (1.0 + 0.05 * gauss()).clamp(0.85, 1.15);
+                let start = origin.add(offset.scale(design.diameter * 0.5 * position));
                 let velocity = self
                     .body
                     .velocity
-                    .add(direction.scale(speed * position * rand(0.96, 1.04)));
+                    .add(offset.scale(speed * position * shape));
                 match item {
-                    Payload::Stars { recipe, .. } => {
-                        out.stars.push(Star::new(recipe, 1.0, start, velocity))
-                    }
+                    Payload::Stars { recipe, .. } => out
+                        .stars
+                        .push(Star::new(recipe, 1.0, start, velocity).varied().primed(0.1)),
                     Payload::Shells { designs, fuse, .. } => out.shells.push(Shell::new(
                         pick(designs),
                         start,
@@ -263,16 +387,20 @@ impl Shell {
         if let Some(comet) = self.attached[1].take() {
             out.stars.push(comet);
         }
-        // Flash and smoke scale with the charge, relative to a 6-inch shell.
+        // Flash and smoke scale with the charge, relative to a 6-inch shell:
+        // the bursting charge leaves a dense cloud at the centre, and the
+        // stars leave theirs where they burn out.
         let size = (design.burst_charge / 0.27).cbrt();
         out.puffs.push(Puff::flash(origin, size.min(1.0)));
-        let smoke = (4.0 + 10.0 * size).round() as usize;
+        let smoke = (2.0 + 3.0 * size).round() as usize;
         for _ in 0..smoke {
-            let offset = random_unit().scale(design.diameter * rand(0.5, 6.0) * size);
+            let offset = random_unit().scale(rand(1.0, 6.0) * size);
             out.puffs.push(Puff::smoke(
                 origin.add(offset),
                 self.body.velocity.scale(0.2),
-                rand(1.5, 3.0),
+                rand(4.0, 7.0) * size.max(0.3),
+                0.35,
+                rand(18.0, 26.0),
             ));
         }
     }

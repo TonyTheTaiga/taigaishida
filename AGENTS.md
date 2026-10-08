@@ -4,7 +4,7 @@
 
 This is a Svelte 5/SvelteKit personal site with a Rust/WebAssembly fireworks engine.
 
-- `src/routes/+page.svelte` owns the full-viewport Glow canvas, show selection (desktop or mobile), and animation loop; `+layout.svelte` provides shared layout.
+- `src/routes/+page.svelte` owns the full-viewport Glow canvas, show selection (desktop or mobile), the particle counter, and animation loop; `+layout.svelte` provides shared layout.
 - `src/app.css` contains global styles; `src/lib/` holds shared modules and bundled assets.
 - `crates/fireworks-wasm/src/lib.rs` implements the simulation and exported WASM API.
 - `static/` contains directly served assets, including favicons and `robots.txt`.
@@ -27,7 +27,7 @@ Use pnpm and Node.js 24, matching Cloud Build and the App Engine runtime. Instal
 
 Use TypeScript in Svelte components and preserve strict typing. Match nearby formatting: Svelte scripts use tabs, JavaScript configuration uses two spaces, and Rust uses four spaces. Use camelCase for JavaScript variables/functions, snake_case for Rust functions, PascalCase for Rust types, and UPPER_SNAKE_CASE for constants. Preserve SvelteKit route filenames and use `$lib` imports for shared code.
 
-Keep the Rust point/trail buffer layouts synchronized with the WebGL batch strides in `src/lib/renderers/glow.ts`.
+Keep the Rust point, trail, and mesh buffer layouts (documented in `crates/fireworks-wasm/src/render.rs`) synchronized with the WebGL batch strides in `src/lib/renderers/glow.ts`.
 
 ## Testing Guidelines
 

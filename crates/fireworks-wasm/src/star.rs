@@ -12,7 +12,7 @@ use crate::chemistry::{
 };
 use crate::particle::{Body, Particles, Vec3, GRAVITY};
 use crate::trail::Trail;
-use crate::{rand, random_unit};
+use crate::{gauss, rand, random_unit};
 
 /// A 4 mm star of unit luminosity has a luminance of 1.
 pub const REFERENCE_RADIUS: f64 = 0.004;
@@ -45,6 +45,12 @@ pub struct Star {
     phase: f64,
     heading: Vec3,
     spark_debt: f64,
+    /// Burn-rate multiplier: hand-pressed stars differ in density and mix.
+    vigour: f64,
+    /// Brightness multiplier from the same differences and from impurities.
+    glow: f64,
+    /// Seconds left before the priming catches and the star lights.
+    delay: f64,
 }
 
 impl Star {
@@ -59,9 +65,29 @@ impl Star {
             phase: rand(0.0, 1.0),
             heading: random_unit(),
             spark_debt: rand(0.0, 1.0),
+            vigour: 1.0,
+            glow: 1.0,
+            delay: 0.0,
         };
         star.sync_body();
         star
+    }
+
+    /// No two hand-made stars are alike: burn rate varies by about 6% and
+    /// brightness by about 10% (estimates within the scatter of Ooki's
+    /// measured burn rates), so a flower's stars die over a spread of time
+    /// rather than in one frame.
+    pub fn varied(mut self) -> Self {
+        self.vigour = (1.0 + 0.06 * gauss()).clamp(0.82, 1.18);
+        self.glow = (1.0 + 0.1 * gauss()).clamp(0.7, 1.3);
+        self
+    }
+
+    /// The burst flame takes up to `latest` seconds to light the priming;
+    /// until then the star flies dark.
+    pub fn primed(mut self, latest: f64) -> Self {
+        self.delay = rand(0.0, latest);
+        self
     }
 
     pub fn radius(&self) -> f64 {
@@ -93,6 +119,12 @@ impl Star {
     /// Advance combustion and motion. Returns false once the star is spent,
     /// has split, or has fallen into the water.
     pub fn update(&mut self, dt: f64, out: &mut Emission) -> bool {
+        if self.delay > 0.0 {
+            self.delay -= dt;
+            self.trail.record(self.body.position, 1);
+            self.body.step(dt);
+            return self.body.position.y > 0.0;
+        }
         let Some((index, layer_end)) = self.current_layer() else {
             return false;
         };
@@ -108,7 +140,7 @@ impl Star {
         self.trail.record(self.body.position, 1);
 
         let mass_before = self.body.mass;
-        self.burned = (self.burned + composition.burn_rate * dt).min(layer_end);
+        self.burned = (self.burned + composition.burn_rate * self.vigour * dt).min(layer_end);
         self.sync_body();
         let burned_mass = (mass_before - self.body.mass).max(0.0);
 
@@ -118,7 +150,13 @@ impl Star {
                 self.spark_debt -= 1.0;
                 // Spread emission along this tick's path so tails stay continuous.
                 let along = self.body.velocity.scale(dt * rand(0.0, 1.0));
-                let throw = random_unit().scale(fuel.eject_speed * rand(0.3, 1.0));
+                let throw = match composition.effect {
+                    Effect::Fountain { spread } => Vec3::new(0.0, 1.0, 0.0)
+                        .add(random_unit().scale(spread))
+                        .normalized()
+                        .scale(fuel.eject_speed * rand(0.7, 1.0)),
+                    _ => random_unit().scale(fuel.eject_speed * rand(0.3, 1.0)),
+                };
                 out.sparks.push(Spark::new(
                     fuel,
                     self.body.position.add(along),
@@ -140,10 +178,20 @@ impl Star {
                 self.heading
                     .scale((thrust / self.body.mass).min(MAX_THRUST_ACCELERATION))
             }
+            Effect::Flutter { hz, glide } => {
+                // Lift from the tumbling flake pushes it to and fro across
+                // a fixed horizontal heading.
+                let across = Vec3::new(self.heading.x, 0.0, self.heading.z).normalized();
+                let swing = (std::f64::consts::TAU * hz * self.age + self.phase * 6.0).sin();
+                across.scale(glide * GRAVITY * swing)
+            }
             _ => Vec3::default(),
         };
 
-        self.body.step(dt);
+        // A gerb is clamped to the deck; everything else flies.
+        if !matches!(composition.effect, Effect::Fountain { .. }) {
+            self.body.step(dt);
+        }
         self.age += dt;
         self.body.position.y > 0.0 && self.radius() > 0.0
     }
@@ -166,12 +214,15 @@ impl Star {
         for k in 0..fragments {
             let angle = roll + k as f64 / fragments as f64 * std::f64::consts::TAU;
             let direction = u.scale(angle.cos()).add(v.scale(angle.sin()));
-            out.stars.push(Star::new(
-                core,
-                fragment_scale,
-                self.body.position,
-                self.body.velocity.add(direction.scale(speed)),
-            ));
+            out.stars.push(
+                Star::new(
+                    core,
+                    fragment_scale,
+                    self.body.position,
+                    self.body.velocity.add(direction.scale(speed)),
+                )
+                .varied(),
+            );
         }
     }
 
@@ -179,12 +230,27 @@ impl Star {
     /// proportional to burning surface area; strobes concentrate the same
     /// energy into short pulses.
     pub fn light(&self) -> Option<(Rgb, f64)> {
+        if self.delay > 0.0 {
+            return None;
+        }
         let composition = self.layer()?.composition;
         let radius = self.radius() / REFERENCE_RADIUS;
-        let mut luminance = composition.luminosity * radius * radius;
-        if let Effect::Strobe { hz, duty } = composition.effect {
-            let cycle = (self.age * hz + self.phase).fract();
-            luminance = if cycle < duty { luminance / duty } else { 0.0 };
+        // Flames flutter by a few percent as gas and particles leave the
+        // surface unevenly.
+        let flutter = 1.0
+            + 0.07 * (self.age * 41.0 + self.phase * 31.0).sin() * (self.age * 17.0 + self.phase * 11.0).sin();
+        let mut luminance = composition.luminosity * radius * radius * self.glow * flutter;
+        match composition.effect {
+            Effect::Strobe { hz, duty } => {
+                let cycle = (self.age * hz + self.phase).fract();
+                luminance = if cycle < duty { luminance / duty } else { 0.0 };
+            }
+            // The flake's coated face turns toward and away from the viewer.
+            Effect::Flutter { hz, .. } => {
+                let face = (std::f64::consts::PI * hz * self.age + self.phase * 3.0).sin();
+                luminance *= 0.25 + 1.5 * face * face;
+            }
+            _ => {}
         }
         Some((composition.color, luminance))
     }
@@ -266,25 +332,35 @@ pub enum PuffKind {
     Flash,
 }
 
+/// Turbulent mixing spreads a smoke parcel's radius as √t; a burst cloud
+/// doubles in size within ten seconds in light wind (estimate).
+const SMOKE_SPREAD: f64 = 2.2;
+
 /// Burst by-products: a short detonation flash and drifting combustion smoke.
 pub struct Puff {
     pub body: Body,
     pub kind: PuffKind,
+    /// Flash: light relative to a 6-inch burst. Smoke: optical depth at the
+    /// parcel's centre when it forms.
     pub intensity: f64,
+    /// Smoke radius when the parcel forms, metres.
+    initial_radius: f64,
 }
 
 impl Puff {
-    pub fn smoke(position: Vec3, velocity: Vec3, life: f64) -> Self {
+    /// A parcel of hot gas and K₂CO₃/K₂SO₄ particulate. It rides the wind,
+    /// rises slowly on its own buoyancy, and thins as it spreads; it hangs in
+    /// the sky long enough for later bursts to light it.
+    pub fn smoke(position: Vec3, velocity: Vec3, radius: f64, density: f64, life: f64) -> Self {
         let mut body = Body::new(position, velocity, life);
-        // A parcel of hot gas and K₂CO₃/K₂SO₄ particulate: it rides the wind
-        // and rises slowly on its own buoyancy.
         body.diameter = 0.05;
         body.mass = 1e-5;
         body.acceleration.y = GRAVITY + 0.3;
         Self {
             body,
             kind: PuffKind::Smoke,
-            intensity: 1.0,
+            intensity: density,
+            initial_radius: radius,
         }
     }
 
@@ -296,11 +372,30 @@ impl Puff {
             body,
             kind: PuffKind::Flash,
             intensity,
+            initial_radius: 0.0,
         }
     }
 
     pub fn fraction(&self) -> f64 {
         (self.body.life / self.body.max_life).max(0.0)
+    }
+
+    pub fn age(&self) -> f64 {
+        self.body.max_life - self.body.life
+    }
+
+    /// Current smoke radius, metres.
+    pub fn radius(&self) -> f64 {
+        self.initial_radius + SMOKE_SPREAD * self.age().sqrt()
+    }
+
+    /// Optical depth through the parcel's centre: the same particulate spread
+    /// over a growing area, faded in over the first second and out at the end.
+    pub fn density(&self) -> f64 {
+        let spread = (self.initial_radius / self.radius()).powi(2);
+        let form = (self.age() / 0.8).min(1.0);
+        let fade = (self.fraction() / 0.3).min(1.0);
+        self.intensity * spread * form * fade
     }
 
     pub fn update(&mut self, dt: f64) -> bool {

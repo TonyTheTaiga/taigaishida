@@ -22,6 +22,8 @@
   let glowCanvas: HTMLCanvasElement;
   let rendererNote = $state("");
   let error = $state("");
+  let counts = $state({ total: 0, stars: 0, sparks: 0, smoke: 0 });
+  const formatCount = (n: number) => n.toLocaleString("en-US");
 
   onMount(() => {
     let disposed = false;
@@ -75,6 +77,7 @@
       window.addEventListener("resize", onResize);
 
       let lastTime = performance.now();
+      let lastCount = 0;
       let animId = 0;
       let running = true;
 
@@ -87,7 +90,16 @@
 
         engine.tick(dtSec);
 
-        // Re-read after tick: WASM memory or either output buffer can move.
+        // A few updates a second keep the counter readable and cheap.
+        if (now - lastCount > 250) {
+          lastCount = now;
+          const stars = engine.star_count();
+          const sparks = engine.spark_count();
+          const smoke = engine.smoke_count();
+          counts = { total: stars + sparks + smoke, stars, sparks, smoke };
+        }
+
+        // Re-read after tick: WASM memory or any output buffer can move.
         const points = new Float32Array(
           wasmExports.memory.buffer,
           engine.points_ptr(),
@@ -98,8 +110,23 @@
           engine.trails_ptr(),
           engine.trails_len(),
         );
+        const mesh = new Float32Array(
+          wasmExports.memory.buffer,
+          engine.mesh_ptr(),
+          engine.mesh_len(),
+        );
         const size = viewport();
-        glow?.draw(points, trails, size.width, size.height);
+        glow?.draw(
+          {
+            points,
+            trails,
+            mesh,
+            horizon: engine.horizon() * CELL_H,
+            waterline: engine.waterline() * CELL_H,
+          },
+          size.width,
+          size.height,
+        );
 
         animId = requestAnimationFrame(tick);
       }
@@ -156,6 +183,18 @@
 
 <div class="viewport-shell fixed inset-0 overflow-hidden bg-black">
   <canvas bind:this={glowCanvas} class="block h-full w-full"></canvas>
+  <div
+    class="pointer-events-none absolute top-4 right-4 text-right font-mono text-xs text-white/55 tabular-nums"
+    aria-hidden="true"
+  >
+    <div class="text-sm text-white/80">
+      {formatCount(counts.total)} particles
+    </div>
+    <div>
+      {formatCount(counts.stars)} stars · {formatCount(counts.sparks)} sparks ·
+      {formatCount(counts.smoke)} smoke
+    </div>
+  </div>
   {#if rendererNote}
     <p
       role="status"

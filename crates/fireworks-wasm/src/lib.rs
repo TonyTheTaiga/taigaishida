@@ -1,33 +1,30 @@
-use std::sync::OnceLock;
-
 use wasm_bindgen::prelude::*;
 
 mod chemistry;
+mod comet;
 mod designs;
+mod fleet;
 mod particle;
 mod projection;
+mod render;
 mod shell;
 mod show;
 mod star;
 mod trail;
 
-use chemistry::{blackbody, perceived, Rgb};
 use particle::{Clock, Particles, Vec3};
 use projection::Camera;
+use render::Frame;
 use shell::{Burst, Flight, Shell};
 use show::{Program, Venue};
-use star::{Emission, Puff, PuffKind, Spark, Star};
+use star::{Emission, Puff, Spark, Star};
 
 // ─── Constants ──────────────────────────────────────────────────────
 
-/// Stars draw four history segments and sparks one; the desktop budget is the
-/// largest either venue can produce.
-const MAX_TRAIL_SEGMENTS: usize = {
-    let budget = Venue::Desktop.budget();
-    budget.stars * 4 + budget.sparks
-};
-/// Persistence of vision: how long a moving spark smears across the retina.
-const EXPOSURE: f64 = 0.08;
+/// Share of stars whose burnt-out smoke is tracked as its own parcel. Each
+/// stands for the smoke of several stars, so a burst leaves a faint shell of
+/// smoke the size of its flower.
+const STAR_SMOKE_SHARE: f64 = 0.12;
 
 // ─── RNG helpers ────────────────────────────────────────────────────
 
@@ -65,180 +62,19 @@ pub(crate) fn pick<T: Copy>(arr: &[T]) -> T {
     arr[(rand_f64() * arr.len() as f64).floor() as usize % arr.len()]
 }
 
+/// Standard normal deviate (Box–Muller).
+pub(crate) fn gauss() -> f64 {
+    let u = rand_f64().max(1e-12);
+    let v = rand_f64();
+    (-2.0 * u.ln()).sqrt() * (std::f64::consts::TAU * v).cos()
+}
+
 /// Uniformly distributed direction on the unit sphere.
 pub(crate) fn random_unit() -> Vec3 {
     let z = rand(-1.0, 1.0);
     let a = rand(0.0, std::f64::consts::TAU);
     let r = (1.0 - z * z).sqrt();
     Vec3::new(r * a.cos(), r * a.sin(), z)
-}
-
-// ─── Light output ───────────────────────────────────────────────────
-
-const LUT_MIN: f64 = 800.0;
-const LUT_STEP: f64 = 25.0;
-const LUT_SIZE: usize = 140;
-
-/// Blackbody colours from 800 K to 4275 K, computed once.
-fn spark_colour(temperature: f64) -> Rgb {
-    static TABLE: OnceLock<Vec<Rgb>> = OnceLock::new();
-    let table = TABLE.get_or_init(|| {
-        (0..LUT_SIZE)
-            .map(|i| blackbody(LUT_MIN + i as f64 * LUT_STEP))
-            .collect()
-    });
-    let index = ((temperature - LUT_MIN) / LUT_STEP)
-        .round()
-        .clamp(0.0, (LUT_SIZE - 1) as f64);
-    table[index as usize]
-}
-
-fn write_point(
-    points: &mut Vec<f32>,
-    at: (f64, f64),
-    radius: f64,
-    rgb: Rgb,
-    alpha: f64,
-    kind: f32,
-) {
-    points.extend_from_slice(&[
-        at.0 as f32,
-        at.1 as f32,
-        radius as f32,
-        rgb.0 * 255.0,
-        rgb.1 * 255.0,
-        rgb.2 * 255.0,
-        alpha.clamp(0.0, 1.0) as f32,
-        kind,
-    ]);
-}
-
-fn write_segment(
-    trails: &mut Vec<f32>,
-    from: (f64, f64),
-    to: (f64, f64),
-    width: f64,
-    rgb: Rgb,
-    alpha: f64,
-) {
-    trails.extend_from_slice(&[
-        from.0 as f32,
-        from.1 as f32,
-        to.0 as f32,
-        to.1 as f32,
-        width as f32,
-        rgb.0 * 255.0,
-        rgb.1 * 255.0,
-        rgb.2 * 255.0,
-        alpha.clamp(0.0, 1.0) as f32,
-        0.0,
-    ]);
-}
-
-/// Distant light dims and shrinks; it never vanishes entirely.
-fn distance_dimming(ratio: f64) -> f64 {
-    ratio.clamp(0.35, 1.0)
-}
-
-fn render_star(star: &Star, camera: &Camera, points: &mut Vec<f32>, trails: &mut Vec<f32>) {
-    let Some((rgb, luminance)) = star.light() else {
-        return;
-    };
-    let brightness = perceived(luminance);
-    if brightness < 0.02 {
-        return;
-    }
-    let p = star.body.position;
-    let Some(mut head) = camera.project(p.x, p.y, p.z) else {
-        return;
-    };
-    let ratio = head.2;
-    let alpha = brightness.min(1.0) * distance_dimming(ratio);
-    let radius = (0.7 + 1.1 * brightness.min(2.0)) * ratio.clamp(0.3, 3.0);
-    write_point(points, (head.0, head.1), radius, rgb, alpha, 0.0);
-    // The eye integrates the last ~0.13 s of motion into a short streak.
-    for (age, tail) in star
-        .trail
-        .samples()
-        .enumerate()
-        .filter(|(age, _)| age % 2 == 1)
-    {
-        if trails.len() / 10 >= MAX_TRAIL_SEGMENTS {
-            return;
-        }
-        let Some(end) = camera.project(tail.x, tail.y, tail.z) else {
-            return;
-        };
-        let fade = (1.0 - age as f64 / 9.0).powi(2);
-        write_segment(
-            trails,
-            (head.0, head.1),
-            (end.0, end.1),
-            1.8 * ratio,
-            rgb,
-            alpha * fade * 0.85,
-        );
-        head = end;
-    }
-}
-
-fn render_spark(spark: &Spark, camera: &Camera, points: &mut Vec<f32>, trails: &mut Vec<f32>) {
-    let brightness = perceived(spark.luminance());
-    if brightness < 0.03 {
-        return;
-    }
-    let p = spark.body.position;
-    let Some(head) = camera.project(p.x, p.y, p.z) else {
-        return;
-    };
-    let rgb = spark_colour(spark.temperature);
-    let ratio = head.2;
-    let alpha = brightness.min(1.0) * distance_dimming(ratio);
-    if trails.len() / 10 < MAX_TRAIL_SEGMENTS {
-        let t = p.sub(spark.body.velocity.scale(EXPOSURE));
-        if let Some(tail) = camera.project(t.x, t.y, t.z) {
-            let width = (1.0 + 0.7 * brightness.min(2.0)) * ratio;
-            write_segment(
-                trails,
-                (head.0, head.1),
-                (tail.0, tail.1),
-                width,
-                rgb,
-                alpha,
-            );
-        }
-    }
-    // Glitter flashes and popping microstars outshine their own streak.
-    if brightness > 1.3 {
-        let radius = (0.3 + 0.45 * brightness.min(3.0)) * ratio.clamp(0.3, 3.0);
-        write_point(points, (head.0, head.1), radius, rgb, alpha, 0.0);
-    }
-}
-
-fn render_puff(puff: &Puff, camera: &Camera, points: &mut Vec<f32>) {
-    let p = puff.body.position;
-    let Some((x, y, ratio)) = camera.project(p.x, p.y, p.z) else {
-        return;
-    };
-    let fraction = puff.fraction();
-    match puff.kind {
-        PuffKind::Smoke => write_point(
-            points,
-            (x, y),
-            12.0 * ratio.clamp(0.3, 3.0),
-            Rgb(0.31, 0.29, 0.27),
-            fraction.min(0.18),
-            1.0,
-        ),
-        PuffKind::Flash => write_point(
-            points,
-            (x, y),
-            (10.0 + 14.0 * puff.intensity) * ratio.clamp(0.3, 3.0),
-            Rgb(1.0, 0.94, 0.78),
-            fraction.powi(3) * puff.intensity,
-            2.0,
-        ),
-    }
 }
 
 // ─── FireworkEngine (exported) ──────────────────────────────────────
@@ -248,8 +84,7 @@ pub struct FireworkEngine {
     clock: Clock,
     cols: usize,
     rows: usize,
-    points: Vec<f32>,
-    trails: Vec<f32>,
+    frame: Frame,
     shells: Vec<Shell>,
     stars: Particles<Star>,
     sparks: Particles<Spark>,
@@ -260,7 +95,7 @@ pub struct FireworkEngine {
     program: Program,
     /// Seconds into the current loop of the programme.
     time: f64,
-    /// Next launch in the programme.
+    /// Next cue in the programme.
     cue: usize,
 }
 
@@ -280,8 +115,11 @@ impl FireworkEngine {
             clock: Clock::default(),
             cols: cols as usize,
             rows: rows as usize,
-            points: Vec::with_capacity((budget.stars + budget.puffs) * 8),
-            trails: Vec::with_capacity((budget.stars * 4 + budget.sparks) * 10),
+            frame: Frame::new(
+                budget.stars + budget.puffs + budget.lamps,
+                budget.segments(),
+                fleet::MAX_VERTICES,
+            ),
             shells: Vec::new(),
             stars: Particles::new(budget.stars),
             sparks: Particles::new(budget.sparks),
@@ -309,13 +147,13 @@ impl FireworkEngine {
     fn step(&mut self) {
         let dt = Clock::STEP_SECONDS;
         self.time += dt;
-        while let Some(launch) = self
+        while let Some(cue) = self
             .program
-            .launches
+            .cues
             .get(self.cue)
-            .filter(|launch| launch.time <= self.time)
+            .filter(|cue| cue.time <= self.time)
         {
-            self.shells.push(launch.fire());
+            cue.fire(&mut self.shells, &mut self.pending_stars, &mut self.puffs);
             self.cue += 1;
         }
 
@@ -352,14 +190,24 @@ impl FireworkEngine {
             if self.stars.items[i].update(dt, &mut emission) {
                 i += 1;
             } else {
-                self.stars.items.swap_remove(i);
+                let star = self.stars.items.swap_remove(i);
+                let p = star.body.position;
+                if star.radius() <= 0.0 && p.y > 0.0 && rand_f64() < STAR_SMOKE_SHARE {
+                    self.puffs.push(Puff::smoke(
+                        p,
+                        star.body.velocity.scale(0.3),
+                        rand(2.5, 4.5),
+                        0.12,
+                        rand(14.0, 22.0),
+                    ));
+                }
             }
         }
         self.stars.emit(self.pending_stars.drain(..));
         self.sparks.items.retain_mut(|spark| spark.update(dt));
         self.puffs.items.retain_mut(|puff| puff.update(dt));
 
-        // Loop the programme, with fresh star-mine draws each time.
+        // Loop the programme, with fresh random draws each time.
         if self.time > self.program.duration {
             self.time = 0.0;
             self.cue = 0;
@@ -368,50 +216,96 @@ impl FireworkEngine {
     }
 
     fn render(&mut self) {
-        self.points.clear();
-        self.trails.clear();
+        self.frame.clear();
         let camera = Camera::new(self.cols, self.rows, self.venue.stage());
+        let attached = self
+            .shells
+            .iter()
+            .flat_map(|shell| shell.attached.iter().flatten());
+        let light = fleet::Light::gather(
+            self.venue.fleet(),
+            self.stars.items.iter().chain(attached.clone()),
+            &self.puffs.items,
+        );
+        fleet::render(self.venue.fleet(), &light, &camera, &mut self.frame);
         for puff in &self.puffs.items {
-            render_puff(puff, &camera, &mut self.points);
+            render::puff(puff, &camera, &mut self.frame);
         }
         for spark in &self.sparks.items {
-            render_spark(spark, &camera, &mut self.points, &mut self.trails);
+            render::spark(spark, &camera, &mut self.frame);
         }
-        for star in self.stars.items.iter().chain(
-            self.shells
-                .iter()
-                .flat_map(|shell| shell.attached.iter().flatten()),
-        ) {
-            render_star(star, &camera, &mut self.points, &mut self.trails);
+        for star in self.stars.items.iter().chain(attached) {
+            render::star(star, &camera, &mut self.frame);
         }
     }
 
     pub fn resize(&mut self, cols: u32, rows: u32) {
-        let cols = cols as usize;
-        let rows = rows as usize;
-        self.cols = cols;
-        self.rows = rows;
         // The camera reframes the same physical stage, so the show itself is
         // unaffected by the viewport.
-        self.points.clear();
-        self.trails.clear();
+        self.cols = cols as usize;
+        self.rows = rows as usize;
+        self.frame.clear();
     }
 
-    /// Packed point data for smooth renderers. Length is in f32 elements, not bytes.
+    /// Packed point data for smooth renderers. Lengths are in f32 elements,
+    /// not bytes; `render.rs` documents each layout.
     pub fn points_ptr(&self) -> *const f32 {
-        self.points.as_ptr()
+        self.frame.points.as_ptr()
     }
 
     pub fn points_len(&self) -> usize {
-        self.points.len()
+        self.frame.points.len()
     }
 
     pub fn trails_ptr(&self) -> *const f32 {
-        self.trails.as_ptr()
+        self.frame.trails.as_ptr()
     }
 
     pub fn trails_len(&self) -> usize {
-        self.trails.len()
+        self.frame.trails.len()
+    }
+
+    pub fn mesh_ptr(&self) -> *const f32 {
+        self.frame.mesh.as_ptr()
+    }
+
+    pub fn mesh_len(&self) -> usize {
+        self.frame.mesh.len()
+    }
+
+    /// Grid row of the horizon, where sky meets water.
+    pub fn horizon(&self) -> f64 {
+        Camera::new(self.cols, self.rows, self.venue.stage()).horizon()
+    }
+
+    /// Grid row of the water surface beneath the barges, the line bursts
+    /// reflect about.
+    pub fn waterline(&self) -> f64 {
+        Camera::new(self.cols, self.rows, self.venue.stage()).waterline()
+    }
+
+    /// Live particles for the on-screen counter: burning stars (and comets
+    /// riding on climbing shells), spark particles, smoke and flash parcels,
+    /// and shells still in flight.
+    pub fn star_count(&self) -> u32 {
+        let attached: usize = self
+            .shells
+            .iter()
+            .map(|shell| shell.attached.iter().flatten().count())
+            .sum();
+        (self.stars.items.len() + attached) as u32
+    }
+
+    pub fn spark_count(&self) -> u32 {
+        self.sparks.items.len() as u32
+    }
+
+    pub fn smoke_count(&self) -> u32 {
+        self.puffs.items.len() as u32
+    }
+
+    pub fn shell_count(&self) -> u32 {
+        self.shells.len() as u32
     }
 
     pub fn cols(&self) -> u32 {
@@ -427,8 +321,9 @@ impl FireworkEngine {
 mod tests {
     use super::*;
     use designs::{ALL, STAR_MINE};
+    use render::{POINT_STRIDE, TRAIL_STRIDE};
     use shell::ShellDesign;
-    use show::Launch;
+    use show::Cue;
 
     const DESKTOP: show::Budget = Venue::Desktop.budget();
 
@@ -546,8 +441,11 @@ mod tests {
             // The published diameters are typical figures. Slow-burning stars
             // fly further: violet and blue peonies open up to a third wider
             // than red, as Ooki's violet and blue stars outlast silver ones.
+            // Poka shells open gently and their spread depends on what the
+            // stars do afterwards (fish wander at random).
+            let low = if is_warimono(design) { 0.75 } else { 0.6 };
             assert!(
-                (0.75 * small..=1.35 * large).contains(&(2.0 * reach)),
+                (low * small..=1.35 * large).contains(&(2.0 * reach)),
                 "{} flower {} m",
                 design.name,
                 2.0 * reach
@@ -560,7 +458,15 @@ mod tests {
     #[test]
     fn lift_carries_each_shell_to_its_published_height_and_fuses_at_the_apex() {
         for design in every_design() {
-            let mut shell = Launch::new(0.0, design, 40.0, 0.0).fire();
+            let mut shells = Vec::new();
+            let mut stars = Vec::new();
+            let mut puffs = Particles::new(10);
+            Cue::shell(0.0, design, Vec3::new(40.0, 0.0, 0.0), 0.0).fire(
+                &mut shells,
+                &mut stars,
+                &mut puffs,
+            );
+            let mut shell = shells.pop().unwrap();
             let muzzle = shell.body.velocity.length();
             let mut sparks = Particles::new(DESKTOP.sparks);
             let mut pending = Vec::new();
@@ -648,19 +554,23 @@ mod tests {
                 has_depth |= engine.stars.items.iter().any(|s| s.body.velocity.z != 0.0);
                 peak.0 = peak.0.max(engine.stars.items.len());
                 peak.1 = peak.1.max(engine.sparks.items.len());
-                peak.2 = peak.2.max(engine.trails_len() / 10);
+                peak.2 = peak.2.max(engine.trails_len() / TRAIL_STRIDE);
                 assert!(engine.stars.items.len() <= budget.stars);
                 assert!(engine.sparks.items.len() <= budget.sparks);
-                assert_eq!(engine.points_len() % 8, 0);
-                assert_eq!(engine.trails_len() % 10, 0);
-                assert!(engine.trails_len() <= (budget.stars * 4 + budget.sparks) * 10);
-                assert!(engine.trails.iter().all(|v| v.is_finite()));
-                assert!(engine.points.iter().all(|v| v.is_finite()));
-                for point in engine.points.chunks_exact(8) {
+                assert_eq!(engine.points_len() % POINT_STRIDE, 0);
+                assert_eq!(engine.trails_len() % TRAIL_STRIDE, 0);
+                assert_eq!(engine.mesh_len() % (render::MESH_STRIDE * 3), 0);
+                assert!(engine.trails_len() <= budget.segments() * TRAIL_STRIDE);
+                assert!(engine.mesh_len() <= fleet::MAX_VERTICES * render::MESH_STRIDE);
+                let frame = &engine.frame;
+                assert!(frame.trails.iter().all(|v| v.is_finite()));
+                assert!(frame.points.iter().all(|v| v.is_finite()));
+                assert!(frame.mesh.iter().all(|v| v.is_finite() && *v >= 0.0));
+                for point in frame.points.chunks_exact(POINT_STRIDE) {
                     assert!(point[2] > 0.0);
-                    assert!((0.0..=1.0).contains(&point[6]));
+                    assert!(point[6] >= 0.0);
                 }
-                rendered |= !engine.points.is_empty();
+                rendered |= !frame.points.is_empty();
             }
             println!(
                 "{:?}: peak stars {} sparks {} segments {}",
@@ -671,40 +581,9 @@ mod tests {
             assert!(rendered);
             assert!(has_depth);
             assert!(engine.time < 6.0, "show must loop");
+            assert!(engine.waterline() > engine.horizon());
             assert_eq!(engine.mobile(), mobile);
         }
-    }
-
-    #[test]
-    fn spark_and_star_output_match_their_physical_light() {
-        let camera = Camera::new(100, 60, Venue::Desktop.stage());
-        let mut points = Vec::new();
-        let mut trails = Vec::new();
-        const RECIPE: &[chemistry::Layer] = &[chemistry::Layer {
-            composition: &chemistry::STRONTIUM_RED,
-            thickness: 0.004,
-        }];
-        let star = Star::new(
-            RECIPE,
-            1.0,
-            Vec3::new(10.25, 120.0, 15.0),
-            Vec3::new(5.0, 0.0, 0.0),
-        );
-        render_star(&star, &camera, &mut points, &mut trails);
-        assert_eq!(points.len(), 8);
-        let (x, y, _) = camera.project(10.25, 120.0, 15.0).unwrap();
-        assert_eq!(&points[..2], &[x as f32, y as f32]);
-
-        let hot = Spark::new(
-            chemistry::CHARCOAL_TAIL.sparks.as_ref().unwrap(),
-            Vec3::new(0.0, 120.0, 0.0),
-            Vec3::new(10.0, 0.0, 0.0),
-        );
-        trails.clear();
-        render_spark(&hot, &camera, &mut points, &mut trails);
-        assert_eq!(trails.len(), 10);
-        assert!(trails[0] > trails[2], "streak trails behind the motion");
-        assert!(trails[6] < trails[5], "charcoal sparks glow orange");
     }
 
     #[test]
@@ -720,9 +599,9 @@ mod tests {
         assert_eq!(engine.rows(), 80);
         assert_eq!(engine.cue, launched);
         assert_eq!(engine.shells.len(), shells);
-        assert!(engine.program.launches[..launched]
+        assert!(engine.program.cues[..launched]
             .iter()
-            .all(|l| l.time <= engine.time));
+            .all(|cue| cue.time <= engine.time));
         engine.resize(0, 0);
         engine.tick(Clock::STEP_SECONDS);
         assert_eq!(engine.cols(), 0);

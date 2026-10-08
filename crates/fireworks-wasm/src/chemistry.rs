@@ -68,6 +68,19 @@ pub enum Effect {
         fragments: usize,
         efficiency: f64,
     },
+    /// A thin coated flake rather than a ball: it tumbles as it falls, so it
+    /// glides from side to side and flickers as its face turns.
+    Flutter {
+        /// Tumbles per second.
+        hz: f64,
+        /// Peak sideways acceleration from the flake's lift, in g.
+        glide: f64,
+    },
+    /// A gerb: a choked tube fixed to the deck that jets its sparks upward.
+    Fountain {
+        /// Half-angle of the jet, radians.
+        spread: f64,
+    },
 }
 
 /// Where a burning layer's visible light comes from. The render loop uses the
@@ -450,6 +463,199 @@ pub const TIME_FUSE: Composition = Composition {
     effect: Effect::None,
 };
 
+// ─── Modern compositions ────────────────────────────────────────────
+// Colours that recent Japanese and Chinese makers add to the classic six,
+// effects for strobing pistils, salutes, time rain, spiders, bees, falling
+// leaves, and deck gerbs. Burn rates and spark parameters are estimates unless
+// a source is named.
+
+/// Barium and copper chlorides together read turquoise: the BaCl bands with
+/// a tenth of CuCl's blue (copper chloride alone is the deeper blue).
+const BARIUM_COPPER: &[(f64, f64)] = &[
+    (428.0, 0.06),
+    (435.0, 0.08),
+    (443.0, 0.1),
+    (452.0, 0.07),
+    (476.0, 0.035),
+    (488.0, 0.025),
+    (513.7, 0.7),
+    (524.2, 1.0),
+];
+/// Sodium with a quarter as much barium: lemon yellow.
+const SODIUM_BARIUM: &[(f64, f64)] = &[(589.0, 1.0), (589.6, 0.5), (513.7, 0.175), (524.2, 0.25)];
+/// Strontium red lifted toward pink by traces of copper and sodium.
+const STRONTIUM_PINK: &[(f64, f64)] = &[
+    (428.0, 0.024),
+    (435.0, 0.032),
+    (443.0, 0.04),
+    (452.0, 0.028),
+    (476.0, 0.014),
+    (488.0, 0.01),
+    (589.0, 0.2),
+    (589.6, 0.1),
+    (606.0, 0.4),
+    (634.7, 0.6),
+    (646.0, 0.4),
+    (659.0, 0.3),
+    (660.1, 1.0),
+    (673.0, 0.8),
+    (682.0, 0.3),
+];
+
+pub const AQUA: Composition = coloured(BARIUM_COPPER, Rgb(0.0, 1.0, 0.929), 0.0024, 0.85);
+pub const LEMON: Composition = coloured(SODIUM_BARIUM, Rgb(1.0, 0.908, 0.0), 0.0027, 1.05);
+pub const PINK: Composition = coloured(STRONTIUM_PINK, Rgb(1.0, 0.088, 0.522), 0.0029, 0.95);
+
+/// Magnalium–sulfate white strobe. Strobe compositions pulse at 7–20 Hz
+/// (Klapötke group, LMU); hundreds together shimmer like light on water.
+pub const WHITE_STROBE: Composition = Composition {
+    density: STAR_DENSITY,
+    burn_rate: 0.0012,
+    light: Light::Incandescent(3700.0),
+    color: Rgb(0.727, 0.808, 1.0),
+    luminosity: 1.0,
+    sparks: None,
+    effect: Effect::Strobe {
+        hz: 12.0,
+        duty: 0.3,
+    },
+};
+
+/// Titanium particles thrown by a salute's flash powder.
+const SALUTE_SPARKS: SparkFuel = SparkFuel {
+    per_gram: 160.0,
+    diameter: 0.0003,
+    density: 4500.0,
+    heat_capacity: 800.0,
+    eject_speed: 35.0,
+    delay: (0.0, 0.0),
+    smoulder_temperature: 0.0,
+    burn_time: (0.15, 0.45),
+    burn_temperature: 2400.0,
+};
+
+/// Perchlorate–aluminium flash powder (about 70:30) with titanium: it burns
+/// in a few hundredths of a second, a white flash in a halo of white sparks.
+pub const FLASH_TITANIUM: Composition = Composition {
+    density: 1300.0,
+    burn_rate: 0.12,
+    light: Light::Incandescent(3700.0),
+    color: Rgb(0.727, 0.808, 1.0),
+    luminosity: 8.0,
+    sparks: Some(SALUTE_SPARKS),
+    effect: Effect::None,
+};
+
+/// Time rain: big, slow stars that shed large glitter droplets, each
+/// sizzling dark before it flashes.
+pub const TIME_RAIN: Composition = Composition {
+    density: STAR_DENSITY,
+    burn_rate: 0.0014,
+    light: Light::Incandescent(1850.0),
+    color: Rgb(1.0, 0.655, 0.365),
+    luminosity: 0.22,
+    sparks: Some(SparkFuel {
+        per_gram: 35.0,
+        diameter: 0.0009,
+        eject_speed: 1.5,
+        delay: (0.3, 1.0),
+        burn_time: (0.05, 0.12),
+        burn_temperature: 2900.0,
+        ..GLITTER_SPARKS
+    }),
+    effect: Effect::None,
+};
+
+/// Spider stars burn fast and hot, so a hard burst draws straight, flat gold
+/// lines that end together.
+pub const SPIDER_GOLD: Composition = Composition {
+    density: STAR_DENSITY,
+    burn_rate: 0.0075,
+    light: Light::Incandescent(1950.0),
+    color: Rgb(1.0, 0.687, 0.425),
+    luminosity: 0.6,
+    sparks: Some(SparkFuel {
+        per_gram: 45.0,
+        burn_time: (0.4, 0.9),
+        ..CHARCOAL_SPARKS
+    }),
+    effect: Effect::None,
+};
+
+/// Hachi (bees): small pierced stars that spin as they vent, so each one
+/// corkscrews away trailing silver.
+pub const BEE_FUEL: Composition = Composition {
+    density: STAR_DENSITY,
+    burn_rate: 0.0035,
+    light: Light::Incandescent(2300.0),
+    color: Rgb(1.0, 0.788, 0.628),
+    luminosity: 0.7,
+    sparks: Some(SparkFuel {
+        per_gram: 120.0,
+        ..TITANIUM_SPARKS
+    }),
+    effect: Effect::Thrust {
+        exhaust_speed: 30.0,
+        wander: 40.0,
+    },
+};
+
+/// Falling leaves: thin card coated with a slow gold composition. Modelled
+/// as the sphere with the same mass and drag area, whose density is low: a
+/// 16 mm leaf falls at about 4 m/s.
+pub const LEAF_GOLD: Composition = Composition {
+    density: 50.0,
+    burn_rate: 0.0016,
+    light: Light::Incandescent(1950.0),
+    color: Rgb(1.0, 0.687, 0.425),
+    luminosity: 0.35,
+    sparks: None,
+    effect: Effect::Flutter {
+        hz: 1.4,
+        glide: 0.6,
+    },
+};
+
+/// Coarse titanium granules from a gerb: large enough to jet 15–20 m.
+const GERB_SPARKS: SparkFuel = SparkFuel {
+    per_gram: 30.0,
+    diameter: 0.0015,
+    density: 4500.0,
+    heat_capacity: 800.0,
+    eject_speed: 45.0,
+    delay: (0.0, 0.0),
+    smoulder_temperature: 0.0,
+    burn_time: (0.5, 1.1),
+    burn_temperature: 2400.0,
+};
+
+pub const GERB_SILVER: Composition = Composition {
+    density: STAR_DENSITY,
+    burn_rate: 0.0016,
+    light: Light::Incandescent(3000.0),
+    color: Rgb(0.99, 0.951, 1.0),
+    luminosity: 0.5,
+    sparks: Some(GERB_SPARKS),
+    effect: Effect::Fountain { spread: 0.12 },
+};
+
+pub const GERB_GOLD: Composition = Composition {
+    density: STAR_DENSITY,
+    burn_rate: 0.0014,
+    light: Light::Incandescent(1900.0),
+    color: Rgb(1.0, 0.671, 0.395),
+    luminosity: 0.35,
+    sparks: Some(SparkFuel {
+        density: 700.0,
+        heat_capacity: 1500.0,
+        burn_time: (0.8, 1.6),
+        burn_temperature: 1800.0,
+        eject_speed: 30.0,
+        ..GERB_SPARKS
+    }),
+    effect: Effect::Fountain { spread: 0.15 },
+};
+
 // ─── Colour and light ───────────────────────────────────────────────
 
 /// CIE 1931 2° colour-matching functions, from the multi-lobe Gaussian fit of
@@ -594,11 +800,6 @@ pub fn incandescence(temperature: f64) -> f64 {
     table[index] * (1.0 - fraction) + table[index + 1] * fraction
 }
 
-/// Stevens' power law: perceived brightness grows roughly with L^0.4.
-pub fn perceived(luminance: f64) -> f64 {
-    luminance.max(0.0).powf(0.4)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -633,6 +834,17 @@ mod tests {
         ("SPLIT_CHARGE", &SPLIT_CHARGE),
         ("FISH_FUEL", &FISH_FUEL),
         ("TIME_FUSE", &TIME_FUSE),
+        ("AQUA", &AQUA),
+        ("LEMON", &LEMON),
+        ("PINK", &PINK),
+        ("WHITE_STROBE", &WHITE_STROBE),
+        ("FLASH_TITANIUM", &FLASH_TITANIUM),
+        ("TIME_RAIN", &TIME_RAIN),
+        ("SPIDER_GOLD", &SPIDER_GOLD),
+        ("BEE_FUEL", &BEE_FUEL),
+        ("LEAF_GOLD", &LEAF_GOLD),
+        ("GERB_SILVER", &GERB_SILVER),
+        ("GERB_GOLD", &GERB_GOLD),
     ];
 
     #[test]
