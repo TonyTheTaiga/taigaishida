@@ -1,12 +1,14 @@
 //! Packs simulated light into the buffers `src/lib/renderers/glow.ts` draws.
 //!
 //! Layouts, in f32 elements:
-//! - point (8): x, y (grid cells), radius (CSS px), red, green, blue (sRGB
-//!   0–255), intensity (linear, unbounded), kind;
-//! - trail segment (10): x0, y0, x1, y1 (grid cells), width (CSS px), red,
-//!   green, blue (sRGB 0–255), intensity, unused;
-//! - mesh vertex (6): x, y (grid cells), red, green, blue (linear radiance),
-//!   coverage. Triangles arrive back to front.
+//! - point (8): x, y, radius, red, green, blue (sRGB 0–255), intensity
+//!   (linear, unbounded), kind;
+//! - trail segment (10): x0, y0, x1, y1, width, red, green, blue (sRGB
+//!   0–255), intensity, unused;
+//! - mesh vertex (6): x, y, red, green, blue (linear radiance), coverage.
+//!   Triangles arrive back to front.
+//!
+//! Positions, radii, and widths are CSS pixels from the viewport's top left.
 //!
 //! Intensities are linear light, not display values: the renderer blooms,
 //! scatters, reflects, and tone maps them.
@@ -105,7 +107,7 @@ impl Frame {
         true
     }
 
-    /// One opaque triangle of a vessel, in grid cells, with linear radiance.
+    /// One opaque triangle of a vessel, in CSS pixels, with linear radiance.
     pub fn triangle(&mut self, corners: [(f64, f64); 3], light: [f64; 3]) {
         for (x, y) in corners {
             self.mesh.extend_from_slice(&[
@@ -277,7 +279,7 @@ mod tests {
 
     #[test]
     fn spark_and_star_output_match_their_physical_light() {
-        let camera = Camera::new(100, 60, Stage::DESKTOP);
+        let camera = Camera::new(1400.0, 1080.0, Stage::DESKTOP);
         let mut frame = Frame::new(100, 100, 0);
         const RECIPE: &[chemistry::Layer] = &[chemistry::Layer {
             composition: &chemistry::STRONTIUM_RED,

@@ -1,12 +1,12 @@
 // GPU pipeline for the fireworks engine's buffers. Layouts mirror
 // crates/fireworks-wasm/src/render.rs:
-// - points, 8 floats: x, y (grid cells), radius (CSS px), red, green, blue
-//   (sRGB 0–255), intensity (linear), kind (0 emitter, 1 smoke, 2 flash,
-//   3 lamp);
-// - trails, 10 floats: x0, y0, x1, y1 (grid cells), width (CSS px), red,
-//   green, blue, intensity, unused;
-// - mesh, 6 floats per vertex: x, y (grid cells), red, green, blue (linear
-//   radiance), coverage.
+// - points, 8 floats: x, y, radius, red, green, blue (sRGB 0–255),
+//   intensity (linear), kind (0 emitter, 1 smoke, 2 flash, 3 lamp);
+// - trails, 10 floats: x0, y0, x1, y1, width, red, green, blue, intensity,
+//   unused;
+// - mesh, 6 floats per vertex: x, y, red, green, blue (linear radiance),
+//   coverage.
+// Positions, radii, and widths are CSS pixels from the top left.
 // Light accumulates unclipped in a half-float scene target, spreads through a
 // bloom pyramid, lights the smoke and haze, reflects in the water, and is
 // tone mapped once at the end.
@@ -21,9 +21,6 @@ vec4 clip(vec2 pixel) {
   return vec4(pixel / u_size * vec2(2., -2.) + vec2(-1., 1.), 0., 1.);
 }`;
 
-/** Grid cells are 14 × 18 CSS px. */
-const CELL = `const vec2 CELL = vec2(14., 18.);`;
-
 const POINT_VERTEX = `#version 300 es
 precision highp float;
 precision highp int;
@@ -36,7 +33,6 @@ out vec3 v_color;
 out float v_intensity;
 out float v_kind;
 ${QUAD}
-${CELL}
 ${TO_CLIP}
 void main() {
   float kind = a_color.w;
@@ -49,7 +45,7 @@ void main() {
     gl_Position = vec4(2., 2., 2., 1.);
     return;
   }
-  gl_Position = clip(a_position.xy * CELL + v_local * a_position.z);
+  gl_Position = clip(a_position.xy + v_local * a_position.z);
 }`;
 
 const LIGHT_FRAGMENT = `#version 300 es
@@ -101,12 +97,11 @@ out vec3 v_color;
 out float v_intensity;
 out float v_edge;
 ${QUAD}
-${CELL}
 ${TO_CLIP}
 void main() {
   vec2 corner = corners[gl_VertexID];
-  vec2 start = a_ends.xy * CELL;
-  vec2 end = a_ends.zw * CELL;
+  vec2 start = a_ends.xy;
+  vec2 end = a_ends.zw;
   vec2 direction = end - start;
   float distance = length(direction);
   vec2 normal = vec2(-direction.y, direction.x) / max(distance, .001);
@@ -137,11 +132,10 @@ layout(location=0) in vec2 a_position;
 layout(location=1) in vec4 a_light; // red, green, blue, coverage
 uniform vec2 u_size;
 out vec4 v_light;
-${CELL}
 ${TO_CLIP}
 void main() {
   v_light = a_light;
-  gl_Position = clip(a_position * CELL);
+  gl_Position = clip(a_position);
 }`;
 
 const MESH_FRAGMENT = `#version 300 es

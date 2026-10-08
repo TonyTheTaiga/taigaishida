@@ -987,11 +987,22 @@ mod tests {
         venue.program(&mut Rng::new(42))
     }
 
-    const VENUES: [(Venue, &[(usize, usize)]); 2] = [
-        // Desktop, laptop, and ultrawide windows.
-        (Venue::Desktop, &[(137, 50), (91, 44), (180, 50), (73, 57)]),
+    const VENUES: [(Venue, &[(f64, f64)]); 2] = [
+        // Desktop, laptop, ultrawide, and narrow windows.
+        (
+            Venue::Desktop,
+            &[
+                (1918.0, 900.0),
+                (1280.0, 800.0),
+                (2520.0, 900.0),
+                (1024.0, 1026.0),
+            ],
+        ),
         // Phones in portrait and landscape.
-        (Venue::Mobile, &[(27, 46), (29, 51), (60, 21)]),
+        (
+            Venue::Mobile,
+            &[(390.0, 844.0), (412.0, 915.0), (844.0, 390.0)],
+        ),
     ];
 
     #[test]
@@ -1074,16 +1085,16 @@ mod tests {
     fn every_burst_lands_inside_the_frame() {
         for (venue, viewports) in VENUES {
             let program = program(venue);
-            for &(cols, rows) in viewports {
-                let camera = Camera::new(cols, rows, venue.stage());
+            for &(width, height) in viewports {
+                let camera = Camera::new(width, height, venue.stage());
                 for cue in &program.cues {
                     let Some(p) = cue.burst_point() else {
                         continue;
                     };
                     let (x, y, _) = camera.project(p.x, p.y, p.z).unwrap();
                     assert!(
-                        (0.0..cols as f64).contains(&x) && y > 0.0 && y < rows as f64,
-                        "{venue:?} {cols}x{rows}: {} from x={} bursts off screen at ({x:.1}, {y:.1})",
+                        (0.0..width).contains(&x) && y > 0.0 && y < height,
+                        "{venue:?} {width}x{height}: {} from x={} bursts off screen at ({x:.1}, {y:.1})",
                         cue.device.name(),
                         cue.mortar.x
                     );

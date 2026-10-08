@@ -2,9 +2,6 @@
   import { onMount } from "svelte";
   import { GlowRenderer } from "$lib/renderers/glow";
 
-  const CELL_W = 14;
-  const CELL_H = 18;
-
   // Phones get the portrait-first programme on a smaller particle budget;
   // tablets and computers get the panoramic show. `?show=mobile` or
   // `?show=desktop` overrides detection for previews.
@@ -64,19 +61,10 @@
       createGlow();
       const { FireworkEngine } = wasm;
 
-      function computeGrid() {
-        const { width: w, height: h } = viewport();
-        glow?.resize(w, h);
-        return {
-          cols: Math.floor(w / CELL_W),
-          rows: Math.floor(h / CELL_H),
-        };
-      }
-
-      let { cols, rows } = computeGrid();
+      const initial = viewport();
       const engine = new FireworkEngine(
-        cols,
-        rows,
+        initial.width,
+        initial.height,
         prefersMobileShow(),
         requestedSeed(),
       );
@@ -85,8 +73,9 @@
       );
 
       const onResize = () => {
-        ({ cols, rows } = computeGrid());
-        engine.resize(cols, rows);
+        const { width, height } = viewport();
+        glow?.resize(width, height);
+        engine.resize(width, height);
       };
       const resizeObserver = new ResizeObserver(onResize);
       resizeObserver.observe(glowCanvas);
@@ -137,8 +126,8 @@
             points,
             trails,
             mesh,
-            horizon: engine.horizon() * CELL_H,
-            waterline: engine.waterline() * CELL_H,
+            horizon: engine.horizon(),
+            waterline: engine.waterline(),
           },
           size.width,
           size.height,

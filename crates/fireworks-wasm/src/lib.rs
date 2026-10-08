@@ -38,8 +38,9 @@ fn fresh_seed() -> u32 {
 #[wasm_bindgen]
 pub struct FireworkEngine {
     clock: Clock,
-    cols: usize,
-    rows: usize,
+    /// Viewport size in CSS pixels.
+    width: f64,
+    height: f64,
     frame: Frame,
     world: World,
     light: fleet::Light,
@@ -60,7 +61,7 @@ impl FireworkEngine {
     /// particle budget; otherwise the panoramic desktop show plays. The same
     /// `seed` replays the same show; without one, each engine draws its own.
     #[wasm_bindgen(constructor)]
-    pub fn new(cols: u32, rows: u32, mobile: bool, seed: Option<u32>) -> Self {
+    pub fn new(width: f64, height: f64, mobile: bool, seed: Option<u32>) -> Self {
         let venue = if mobile {
             Venue::Mobile
         } else {
@@ -70,8 +71,8 @@ impl FireworkEngine {
         let budget = venue.budget();
         Self {
             clock: Clock::default(),
-            cols: cols as usize,
-            rows: rows as usize,
+            width,
+            height,
             frame: Frame::new(
                 budget.stars + budget.puffs + budget.lamps,
                 budget.segments(),
@@ -131,7 +132,7 @@ impl FireworkEngine {
 
     fn render(&mut self) {
         self.frame.clear();
-        let camera = Camera::new(self.cols, self.rows, self.venue.stage());
+        let camera = self.camera();
         let world = &self.world;
         self.light
             .gather(self.venue.fleet(), world.burning(), &world.puffs.items);
@@ -152,12 +153,16 @@ impl FireworkEngine {
         }
     }
 
-    pub fn resize(&mut self, cols: u32, rows: u32) {
-        // The camera reframes the same physical stage, so the show itself is
-        // unaffected by the viewport.
-        self.cols = cols as usize;
-        self.rows = rows as usize;
+    /// Resize to a `width` × `height` CSS-pixel viewport. The camera
+    /// reframes the same physical stage, so the show itself is unaffected.
+    pub fn resize(&mut self, width: f64, height: f64) {
+        self.width = width;
+        self.height = height;
         self.frame.clear();
+    }
+
+    fn camera(&self) -> Camera {
+        Camera::new(self.width, self.height, self.venue.stage())
     }
 
     /// Packed point data for smooth renderers. Lengths are in f32 elements,
@@ -186,15 +191,16 @@ impl FireworkEngine {
         self.frame.mesh.len()
     }
 
-    /// Grid row of the horizon, where sky meets water.
+    /// CSS pixels from the top of the viewport to the horizon, where sky
+    /// meets water.
     pub fn horizon(&self) -> f64 {
-        Camera::new(self.cols, self.rows, self.venue.stage()).horizon()
+        self.camera().horizon()
     }
 
-    /// Grid row of the water surface beneath the barges, the line bursts
-    /// reflect about.
+    /// CSS pixels from the top to the water surface beneath the barges, the
+    /// line bursts reflect about.
     pub fn waterline(&self) -> f64 {
-        Camera::new(self.cols, self.rows, self.venue.stage()).waterline()
+        self.camera().waterline()
     }
 
     /// Live particles for the on-screen counter: burning stars (and comets
@@ -214,14 +220,6 @@ impl FireworkEngine {
 
     pub fn shell_count(&self) -> u32 {
         self.world.shells.len() as u32
-    }
-
-    pub fn cols(&self) -> u32 {
-        self.cols as u32
-    }
-
-    pub fn rows(&self) -> u32 {
-        self.rows as u32
     }
 }
 
@@ -401,18 +399,18 @@ mod tests {
 
     #[test]
     fn extreme_viewports_run_without_panicking() {
-        for (cols, rows) in [
-            (22, 77),
-            (50, 180),
-            (1, 500),
-            (500, 1),
-            (0, 0),
-            (2000, 2000),
+        for (width, height) in [
+            (308.0, 1386.0),
+            (700.0, 3240.0),
+            (1.0, 9000.0),
+            (7000.0, 1.0),
+            (0.0, 0.0),
+            (28000.0, 36000.0),
         ] {
             for mobile in [false, true] {
-                let mut engine = FireworkEngine::new(cols as u32, rows as u32, mobile, None);
+                let mut engine = FireworkEngine::new(width, height, mobile, None);
                 engine.tick(1.0);
-                engine.resize(rows as u32, cols as u32);
+                engine.resize(height, width);
                 engine.tick(1.0);
             }
         }
@@ -420,8 +418,8 @@ mod tests {
 
     #[test]
     fn both_shows_stay_within_budget_finite_and_loop() {
-        for (mobile, cols, rows) in [(false, 100, 60), (true, 27, 46)] {
-            let mut engine = FireworkEngine::new(cols, rows, mobile, Some(9));
+        for (mobile, width, height) in [(false, 1400.0, 1080.0), (true, 390.0, 844.0)] {
+            let mut engine = FireworkEngine::new(width, height, mobile, Some(9));
             let budget = engine.venue.budget();
             let duration = engine.program.duration;
             let mut rendered = false;
@@ -467,30 +465,29 @@ mod tests {
 
     #[test]
     fn resizing_does_not_replay_past_launches() {
-        let mut engine = FireworkEngine::new(100, 60, false, Some(5));
+        let mut engine = FireworkEngine::new(1400.0, 1080.0, false, Some(5));
         for _ in 0..30 * 60 {
             engine.tick(Clock::STEP_SECONDS);
         }
         let launched = engine.cue;
         let shells = engine.world.shells.len();
-        engine.resize(40, 80);
-        assert_eq!(engine.cols(), 40);
-        assert_eq!(engine.rows(), 80);
+        engine.resize(560.0, 1440.0);
+        assert!(engine.waterline() > engine.horizon());
+        assert!((engine.horizon() - 1440.0 * projection::SKY_FRACTION).abs() < 1e-6);
         assert_eq!(engine.cue, launched);
         assert_eq!(engine.world.shells.len(), shells);
         assert!(engine.program.cues[..launched]
             .iter()
             .all(|cue| cue.time <= engine.time));
-        engine.resize(0, 0);
+        engine.resize(0.0, 0.0);
         engine.tick(Clock::STEP_SECONDS);
-        assert_eq!(engine.cols(), 0);
-        assert_eq!(engine.rows(), 0);
+        assert!(engine.horizon().is_finite());
     }
 
     #[test]
     fn a_seed_replays_the_same_show_and_engines_are_independent() {
         let frames = |seed: u32| {
-            let mut engine = FireworkEngine::new(100, 60, false, Some(seed));
+            let mut engine = FireworkEngine::new(1400.0, 1080.0, false, Some(seed));
             for _ in 0..12 * 60 {
                 engine.tick(Clock::STEP_SECONDS);
             }

@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn only_camera_facing_faces_are_drawn() {
-        let camera = Camera::new(137, 50, Stage::DESKTOP);
+        let camera = Camera::new(1918.0, 900.0, Stage::DESKTOP);
         let fleet = [barge()];
         let mut light = Light::default();
         light.gather(&fleet, std::iter::empty(), &[]);

@@ -181,13 +181,14 @@ portrait screen.
 ## Output buffers
 
 Layouts are documented in `src/render.rs` and mirrored by
-`src/lib/renderers/glow.ts`. Lengths count floats, not bytes.
+`src/lib/renderers/glow.ts`. Lengths count floats, not bytes. Positions,
+radii, and widths are CSS pixels from the viewport's top left.
 
-- Points, eight values: `[x, y, radius_px, red, green, blue, intensity, kind]`.
+- Points, eight values: `[x, y, radius, red, green, blue, intensity, kind]`.
   Kind 0 is a burning emitter, 1 smoke (radius is the parcel's size, intensity
   its optical depth), 2 a flash, and 3 a lamp. Colours are sRGB 0–255;
   intensity is linear light, unbounded.
-- Trail segments, ten values: `[x1, y1, x2, y2, width_px, red, green, blue,
+- Trail segments, ten values: `[x1, y1, x2, y2, width, red, green, blue,
 intensity, reserved]`. Stars draw four history segments; each spark draws
   one streak covering 80 ms of motion, and very bright sparks also draw a
   point.
@@ -238,7 +239,7 @@ Shimizu Table 27. The wind is a constant 2.2 m/s with no shear.
 ## Browser API
 
 ```ts
-const engine = new FireworkEngine(cols, rows, mobile, seed); // seed optional
+const engine = new FireworkEngine(width, height, mobile, seed); // CSS px; seed optional
 engine.mobile(); // which programme is playing
 engine.seed(); // the seed in use: pass it back to replay the show
 engine.tick(elapsedSeconds);
@@ -248,10 +249,10 @@ const points = new Float32Array(
   engine.points_ptr(),
   engine.points_len(),
 ); // likewise trails_ptr/len and mesh_ptr/len
-engine.horizon(); // grid rows: where sky meets water
-engine.waterline(); // grid rows: the water beneath the barges
+engine.horizon(); // CSS px from the top: where sky meets water
+engine.waterline(); // CSS px from the top: the water beneath the barges
 engine.star_count(); // also spark_count, smoke_count, shell_count
-engine.resize(newCols, newRows);
+engine.resize(newWidth, newHeight); // CSS px
 engine.free(); // release when unmounting
 ```
 
