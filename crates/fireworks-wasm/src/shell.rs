@@ -5,9 +5,10 @@
 //! speed proportional to its packing radius (self-similar expansion).
 
 use crate::chemistry::{remaining_mass, Layer, StarRecipe, BLACK_POWDER_HEAT, TIME_FUSE};
-use crate::particle::{Body, Clock, Particles, Vec3};
-use crate::star::{Emission, Puff, Star};
-use crate::{gauss, pick, rand, rand_f64, random_unit};
+use crate::particle::{Body, Clock, Vec3};
+use crate::rng::Rng;
+use crate::star::{Puff, Star};
+use crate::world::Spawn;
 
 /// Fraction of the bursting charge's heat that becomes star motion. Shimizu
 /// (Table 19) measured 63.5 m/s stars from a 6-inch perchlorate-burst shell;
@@ -206,13 +207,6 @@ pub struct Shell {
     pub attached: [Option<Star>; 2],
 }
 
-/// What a shell produces when its burst charge fires.
-pub struct Burst<'a> {
-    pub stars: &'a mut Vec<Star>,
-    pub shells: &'a mut Vec<Shell>,
-    pub puffs: &'a mut Particles<Puff>,
-}
-
 pub enum Flight {
     Climbing,
     Burst,
@@ -221,7 +215,13 @@ pub enum Flight {
 }
 
 impl Shell {
-    pub fn new(design: &'static ShellDesign, position: Vec3, velocity: Vec3, fuse: Fuse) -> Self {
+    pub fn new(
+        design: &'static ShellDesign,
+        position: Vec3,
+        velocity: Vec3,
+        fuse: Fuse,
+        rng: &mut Rng,
+    ) -> Self {
         let mut body = Body::new(position, velocity);
         body.mass = design.mass();
         body.diameter = design.diameter;
@@ -230,19 +230,19 @@ impl Shell {
             design,
             fuse,
             attached: [
-                Some(Star::new(FUSE, 1.0, position, velocity)),
+                Some(Star::new(FUSE, 1.0, position, velocity, rng)),
                 (!design.comet.is_empty())
-                    .then(|| Star::new(design.comet, 1.0, position, velocity)),
+                    .then(|| Star::new(design.comet, 1.0, position, velocity, rng)),
             ],
         }
     }
 
-    pub fn update(&mut self, dt: f64, out: &mut Emission) -> Flight {
+    pub fn update(&mut self, dt: f64, spawn: &mut Spawn) -> Flight {
         for slot in &mut self.attached {
             if let Some(star) = slot {
                 star.body.position = self.body.position;
                 star.body.velocity = self.body.velocity;
-                if !star.update(dt, out) {
+                if !star.update(dt, spawn) {
                     *slot = None;
                 }
             }
@@ -271,7 +271,8 @@ impl Shell {
         }
     }
 
-    pub fn burst(&mut self, out: &mut Burst) {
+    pub fn burst(&mut self, spawn: &mut Spawn) {
+        let rng = &mut *spawn.rng;
         let design = self.design;
         let origin = self.body.position;
         let speed = design.burst_speed();
@@ -279,8 +280,8 @@ impl Shell {
         // of sight so rings read as ellipses of varying eccentricity; an
         // upright one faces the audience within a few tens of degrees.
         let (tilt, azimuth) = match design.orientation {
-            Orientation::Tumbling => (rand(0.2, 1.15), rand(0.0, std::f64::consts::TAU)),
-            Orientation::Upright => (rand(0.0, 0.45), rand(0.0, std::f64::consts::TAU)),
+            Orientation::Tumbling => (rng.range(0.2, 1.15), rng.range(0.0, std::f64::consts::TAU)),
+            Orientation::Upright => (rng.range(0.0, 0.45), rng.range(0.0, std::f64::consts::TAU)),
         };
         let pole = Vec3::new(
             tilt.sin() * azimuth.cos(),
@@ -290,7 +291,7 @@ impl Shell {
         let (u, v, spin) = match design.orientation {
             Orientation::Tumbling => {
                 let (u, v) = pole.basis();
-                (u, v, rand(0.0, std::f64::consts::TAU))
+                (u, v, rng.range(0.0, std::f64::consts::TAU))
             }
             // Picture axes: across and up as the audience sees them, rolled
             // by up to 30°.
@@ -300,7 +301,7 @@ impl Shell {
                     .normalized()
                     .scale(-1.0);
                 let up = pole.cross(across).scale(-1.0);
-                (across, up, rand(-0.5, 0.5))
+                (across, up, rng.range(-0.5, 0.5))
             }
         };
         let (u, v) = (
@@ -313,11 +314,11 @@ impl Shell {
         // strength varies by about 6%, the casing tears unevenly so one side
         // flies up to 12% faster, and the flower comes out a little flattened
         // or drawn out along a random axis.
-        let strength = (1.0 + 0.06 * gauss()).clamp(0.85, 1.15);
-        let tear = random_unit();
-        let lopsided = rand(0.0, 0.12);
-        let squash = random_unit();
-        let flattening = rand(-0.1, 0.1);
+        let strength = (1.0 + 0.06 * rng.gauss()).clamp(0.85, 1.15);
+        let tear = rng.unit();
+        let lopsided = rng.range(0.0, 0.12);
+        let squash = rng.unit();
+        let flattening = rng.range(-0.1, 0.1);
 
         for item in design.payload {
             let (count, position) = match item {
@@ -341,7 +342,7 @@ impl Shell {
                         .add(v.scale(r * a.sin()))
                         .add(pole.scale(z))
                 };
-                let jitter = random_unit().scale(0.05);
+                let jitter = rng.unit().scale(0.05);
                 let offset = match *pattern {
                     Pattern::Sphere => sphere(i).add(jitter).normalized(),
                     Pattern::Ring => {
@@ -391,50 +392,53 @@ impl Shell {
                 };
                 let direction = offset.normalized();
                 // About one star in fifty never takes fire and falls dark.
-                if rand_f64() < 0.02 {
+                if rng.next() < 0.02 {
                     continue;
                 }
                 let along = direction.dot(squash);
                 let shape = strength
                     * (1.0 + lopsided * direction.dot(tear))
                     * (1.0 + flattening * (1.5 * along * along - 0.5))
-                    * (1.0 + 0.05 * gauss()).clamp(0.85, 1.15);
+                    * (1.0 + 0.05 * rng.gauss()).clamp(0.85, 1.15);
                 let start = origin.add(offset.scale(design.diameter * 0.5 * position));
                 let velocity = self
                     .body
                     .velocity
                     .add(offset.scale(speed * position * shape));
                 match item {
-                    Payload::Stars { recipe, .. } => out
-                        .stars
-                        .push(Star::new(recipe, 1.0, start, velocity).varied().primed(0.1)),
-                    Payload::Shells { designs, fuse, .. } => out.shells.push(Shell::new(
-                        pick(designs),
-                        start,
-                        velocity,
-                        Fuse::Burning(rand(fuse.0, fuse.1)),
-                    )),
+                    Payload::Stars { recipe, .. } => {
+                        let star = Star::new(recipe, 1.0, start, velocity, rng)
+                            .varied(rng)
+                            .primed(0.1, rng);
+                        spawn.stars.push(star);
+                    }
+                    Payload::Shells { designs, fuse, .. } => {
+                        let design = rng.pick(designs);
+                        let fuse = Fuse::Burning(rng.range(fuse.0, fuse.1));
+                        let shell = Shell::new(design, start, velocity, fuse, rng);
+                        spawn.shells.push(shell);
+                    }
                 }
             }
         }
 
         if let Some(comet) = self.attached[1].take() {
-            out.stars.push(comet);
+            spawn.stars.push(comet);
         }
         // Flash and smoke scale with the charge, relative to a 6-inch shell:
         // the bursting charge leaves a dense cloud at the centre, and the
         // stars leave theirs where they burn out.
         let size = (design.burst_charge / 0.27).cbrt();
-        out.puffs.push(Puff::flash(origin, size.min(1.0)));
+        spawn.puffs.push(Puff::flash(origin, size.min(1.0)));
         let smoke = (2.0 + 3.0 * size).round() as usize;
         for _ in 0..smoke {
-            let offset = random_unit().scale(rand(1.0, 6.0) * size);
-            out.puffs.push(Puff::smoke(
+            let offset = rng.unit().scale(rng.range(1.0, 6.0) * size);
+            spawn.puffs.push(Puff::smoke(
                 origin.add(offset),
                 self.body.velocity.scale(0.2),
-                rand(4.0, 7.0) * size.max(0.3),
+                rng.range(4.0, 7.0) * size.max(0.3),
                 0.35,
-                rand(18.0, 26.0),
+                rng.range(18.0, 26.0),
             ));
         }
     }
@@ -444,18 +448,13 @@ impl Shell {
 mod tests {
     use super::*;
     use crate::designs::{WATER_FAN, YAEZAKI};
+    use crate::world::Sink;
 
     fn fly(shell: &mut Shell) -> (Flight, f64) {
-        let mut sparks = Particles::new(10_000);
-        let mut stars = Vec::new();
-        let mut emission = Emission {
-            sparks: &mut sparks,
-            stars: &mut stars,
-            spark_rate: 1.0,
-        };
+        let mut sink = Sink::new(10_000);
         let mut time = 0.0;
         loop {
-            match shell.update(Clock::STEP_SECONDS, &mut emission) {
+            match shell.update(Clock::STEP_SECONDS, &mut sink.spawn()) {
                 Flight::Climbing => time += Clock::STEP_SECONDS,
                 flight => return (flight, time),
             }
@@ -472,6 +471,7 @@ mod tests {
             Vec3::new(0.0, crate::fleet::FREEBOARD, 0.0),
             Vec3::new(speed * tilt.sin(), speed * tilt.cos(), 0.0),
             Fuse::Contact,
+            &mut Rng::new(1),
         );
         let (outcome, time) = fly(&mut shell);
         assert!(matches!(outcome, Flight::Burst));
@@ -492,6 +492,7 @@ mod tests {
             Vec3::new(0.0, 200.0, 0.0),
             Vec3::default(),
             Fuse::Burning(1.5),
+            &mut Rng::new(1),
         );
         let (outcome, time) = fly(&mut shell);
         assert!(matches!(outcome, Flight::Burst));
@@ -501,6 +502,7 @@ mod tests {
             Vec3::new(0.0, 5.0, 0.0),
             Vec3::default(),
             Fuse::Burning(60.0),
+            &mut Rng::new(2),
         );
         assert!(matches!(fly(&mut falling).0, Flight::Lost));
     }

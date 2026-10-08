@@ -64,7 +64,14 @@ directly; those follow from measured inputs (see [Calibration](#calibration)).
   vocabulary they are written in.
 - `src/render.rs`: packs light into the output buffers.
 - `src/trail.rs`: eight-sample motion history (persistence of vision) per star.
-- `src/lib.rs`: the exported engine and the simulation step.
+- `src/world.rs`: the `World` that owns every shell, star, spark, and smoke
+  parcel and advances them one fixed step at a time. Anything burning reports
+  what it creates through a single `Spawn`, which also carries the dice.
+- `src/rng.rs`: a seeded generator. Every random draw in a show is passed
+  down explicitly, so a seed replays a show exactly and engines never share
+  state; each loop of the programme draws from its own stream.
+- `src/lib.rs`: the exported engine: it fires the programme's cues into the
+  world and packs each frame.
 
 Physics uses metres, kilograms, kelvin, and seconds. `tick(seconds)` runs up to
 three 1/60 s steps. Each simulated spark stands for many real ones. Once half
@@ -231,8 +238,9 @@ Shimizu Table 27. The wind is a constant 2.2 m/s with no shear.
 ## Browser API
 
 ```ts
-const engine = new FireworkEngine(cols, rows, mobile); // always simulates in 3D
+const engine = new FireworkEngine(cols, rows, mobile, seed); // seed optional
 engine.mobile(); // which programme is playing
+engine.seed(); // the seed in use: pass it back to replay the show
 engine.tick(elapsedSeconds);
 // Recreate views after tick/resize because WASM memory can move.
 const points = new Float32Array(
@@ -263,7 +271,10 @@ pnpm check
 pnpm build:production
 ```
 
-Use pnpm 10 with the current lockfile. Native tests use a deterministic RNG.
+Use pnpm 10 with the current lockfile. Native tests use fixed seeds, and one
+checks that a seed replays a show frame for frame while another engine runs.
+On the page, `?seed=123` replays a show; otherwise the seed is logged to the
+console.
 They check that every stored colour matches its spectrum, layered mass and
 burn-through, crossette mass and momentum conservation, spark cooling, strobe
 and thrust, each shell's burst height, muzzle speed, climb time, star speed,

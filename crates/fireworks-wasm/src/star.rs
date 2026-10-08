@@ -10,9 +10,10 @@
 use crate::chemistry::{
     incandescence, recipe_radius, remaining_mass, Effect, Layer, Rgb, SparkFuel, BLACK_POWDER_HEAT,
 };
-use crate::particle::{Body, Particles, Vec3, DISPLAY_WIND, GRAVITY};
+use crate::particle::{Body, Vec3, DISPLAY_WIND, GRAVITY};
+use crate::rng::Rng;
 use crate::trail::Trail;
-use crate::{gauss, rand, random_unit};
+use crate::world::Spawn;
 
 /// A 4 mm star of unit luminosity has a luminance of 1.
 pub const REFERENCE_RADIUS: f64 = 0.004;
@@ -23,14 +24,6 @@ const STEFAN_BOLTZMANN: f64 = 5.670_374e-8;
 const SPARK_EMISSIVITY: f64 = 0.9;
 /// Thrust is limited as a star's last fraction of a millimetre burns away.
 const MAX_THRUST_ACCELERATION: f64 = 140.0;
-
-/// Where a burning star sends the particles it creates this tick.
-pub struct Emission<'a> {
-    pub sparks: &'a mut Particles<Spark>,
-    pub stars: &'a mut Vec<Star>,
-    /// 0..=1 sampling rate that keeps the spark budget from saturating.
-    pub spark_rate: f64,
-}
 
 pub struct Star {
     pub body: Body,
@@ -63,7 +56,13 @@ enum Mount {
 }
 
 impl Star {
-    pub fn new(layers: &'static [Layer], scale: f64, position: Vec3, velocity: Vec3) -> Self {
+    pub fn new(
+        layers: &'static [Layer],
+        scale: f64,
+        position: Vec3,
+        velocity: Vec3,
+        rng: &mut Rng,
+    ) -> Self {
         let mut star = Self {
             body: Body::new(position, velocity),
             layers,
@@ -71,9 +70,9 @@ impl Star {
             burned: 0.0,
             age: 0.0,
             trail: Trail::new(),
-            phase: rand(0.0, 1.0),
-            heading: random_unit(),
-            spark_debt: rand(0.0, 1.0),
+            phase: rng.next(),
+            heading: rng.unit(),
+            spark_debt: rng.next(),
             vigour: 1.0,
             glow: 1.0,
             delay: 0.0,
@@ -87,9 +86,9 @@ impl Star {
     /// brightness by about 10% (estimates within the scatter of Ooki's
     /// measured burn rates), so a flower's stars die over a spread of time
     /// rather than in one frame.
-    pub fn varied(mut self) -> Self {
-        self.vigour = (1.0 + 0.06 * gauss()).clamp(0.82, 1.18);
-        self.glow = (1.0 + 0.1 * gauss()).clamp(0.7, 1.3);
+    pub fn varied(mut self, rng: &mut Rng) -> Self {
+        self.vigour = (1.0 + 0.06 * rng.gauss()).clamp(0.82, 1.18);
+        self.glow = (1.0 + 0.1 * rng.gauss()).clamp(0.7, 1.3);
         self
     }
 
@@ -102,8 +101,8 @@ impl Star {
 
     /// The burst flame takes up to `latest` seconds to light the priming;
     /// until then the star flies dark.
-    pub fn primed(mut self, latest: f64) -> Self {
-        self.delay = rand(0.0, latest);
+    pub fn primed(mut self, latest: f64, rng: &mut Rng) -> Self {
+        self.delay = rng.range(0.0, latest);
         self
     }
 
@@ -135,7 +134,7 @@ impl Star {
 
     /// Advance combustion and motion. Returns false once the star is spent,
     /// has split, or has fallen into the water.
-    pub fn update(&mut self, dt: f64, out: &mut Emission) -> bool {
+    pub fn update(&mut self, dt: f64, spawn: &mut Spawn) -> bool {
         if self.delay > 0.0 {
             self.delay -= dt;
             self.trail.record(self.body.position, 1);
@@ -151,7 +150,7 @@ impl Star {
             efficiency,
         } = composition.effect
         {
-            self.split(index, fragments, efficiency, out);
+            self.split(index, fragments, efficiency, spawn);
             return false;
         }
         self.trail.record(self.body.position, 1);
@@ -162,23 +161,26 @@ impl Star {
         let burned_mass = (mass_before - self.body.mass).max(0.0);
 
         if let Some(fuel) = &composition.sparks {
-            self.spark_debt += burned_mass * 1000.0 * fuel.per_gram * out.spark_rate;
+            self.spark_debt += burned_mass * 1000.0 * fuel.per_gram * spawn.spark_rate;
             while self.spark_debt >= 1.0 {
                 self.spark_debt -= 1.0;
+                let rng = &mut *spawn.rng;
                 // Spread emission along this tick's path so tails stay continuous.
-                let along = self.body.velocity.scale(dt * rand(0.0, 1.0));
+                let along = self.body.velocity.scale(dt * rng.next());
                 let throw = match composition.effect {
                     Effect::Fountain { spread } => Vec3::new(0.0, 1.0, 0.0)
-                        .add(random_unit().scale(spread))
+                        .add(rng.unit().scale(spread))
                         .normalized()
-                        .scale(fuel.eject_speed * rand(0.7, 1.0)),
-                    _ => random_unit().scale(fuel.eject_speed * rand(0.3, 1.0)),
+                        .scale(fuel.eject_speed * rng.range(0.7, 1.0)),
+                    _ => rng.unit().scale(fuel.eject_speed * rng.range(0.3, 1.0)),
                 };
-                out.sparks.push(Spark::new(
+                let spark = Spark::new(
                     fuel,
                     self.body.position.add(along),
                     self.body.velocity.add(throw),
-                ));
+                    rng,
+                );
+                spawn.sparks.push(spark);
             }
         }
 
@@ -189,7 +191,7 @@ impl Star {
             } if self.body.mass > 0.0 => {
                 self.heading = self
                     .heading
-                    .add(random_unit().scale(wander * dt.sqrt()))
+                    .add(spawn.rng.unit().scale(wander * dt.sqrt()))
                     .normalized();
                 let thrust = burned_mass / dt * exhaust_speed;
                 self.heading
@@ -215,7 +217,7 @@ impl Star {
     /// The split charge fires: the remaining core breaks into equal fragments
     /// thrown perpendicular to the flight path. Momentum is conserved and the
     /// fragments share the charge's useful energy as kinetic energy.
-    fn split(&self, index: usize, fragments: usize, efficiency: f64, out: &mut Emission) {
+    fn split(&self, index: usize, fragments: usize, efficiency: f64, spawn: &mut Spawn) {
         let core = &self.layers[index + 1..];
         if core.is_empty() || fragments == 0 {
             return;
@@ -226,19 +228,19 @@ impl Star {
         let speed = (2.0 * energy / core_mass).sqrt();
         let fragment_scale = self.scale * (fragments as f64).powf(-1.0 / 3.0);
         let (u, v) = self.body.velocity.basis();
-        let roll = rand(0.0, std::f64::consts::TAU);
+        let roll = spawn.rng.range(0.0, std::f64::consts::TAU);
         for k in 0..fragments {
             let angle = roll + k as f64 / fragments as f64 * std::f64::consts::TAU;
             let direction = u.scale(angle.cos()).add(v.scale(angle.sin()));
-            out.stars.push(
-                Star::new(
-                    core,
-                    fragment_scale,
-                    self.body.position,
-                    self.body.velocity.add(direction.scale(speed)),
-                )
-                .varied(),
-            );
+            let fragment = Star::new(
+                core,
+                fragment_scale,
+                self.body.position,
+                self.body.velocity.add(direction.scale(speed)),
+                spawn.rng,
+            )
+            .varied(spawn.rng);
+            spawn.stars.push(fragment);
         }
     }
 
@@ -285,11 +287,11 @@ pub struct Spark {
 }
 
 impl Spark {
-    pub fn new(fuel: &SparkFuel, position: Vec3, velocity: Vec3) -> Self {
+    pub fn new(fuel: &SparkFuel, position: Vec3, velocity: Vec3, rng: &mut Rng) -> Self {
         let mut body = Body::new(position, velocity);
         body.diameter = fuel.diameter;
         body.mass = fuel.density * std::f64::consts::PI / 6.0 * fuel.diameter.powi(3);
-        let delay = rand(fuel.delay.0, fuel.delay.1);
+        let delay = rng.range(fuel.delay.0, fuel.delay.1);
         Self {
             body,
             temperature: if delay > 0.0 {
@@ -300,19 +302,19 @@ impl Spark {
             heat_capacity: fuel.heat_capacity,
             delay,
             smoulder_temperature: fuel.smoulder_temperature,
-            burn: rand(fuel.burn_time.0, fuel.burn_time.1),
+            burn: rng.range(fuel.burn_time.0, fuel.burn_time.1),
             burn_temperature: fuel.burn_temperature,
         }
     }
 
-    pub fn update(&mut self, dt: f64) -> bool {
+    pub fn update(&mut self, dt: f64, rng: &mut Rng) -> bool {
         if self.delay > 0.0 {
             self.delay -= dt;
             self.temperature = self.smoulder_temperature;
         } else if self.burn > 0.0 {
             self.burn -= dt;
             // Combustion at the particle surface flickers by a few percent.
-            self.temperature = self.burn_temperature * rand(0.97, 1.03);
+            self.temperature = self.burn_temperature * rng.range(0.97, 1.03);
         } else {
             self.cool(dt);
         }
@@ -442,6 +444,7 @@ impl Puff {
 mod tests {
     use super::*;
     use crate::chemistry::*;
+    use crate::world::Sink;
 
     const COLOUR_CHANGER: &[Layer] = &[
         Layer {
@@ -469,33 +472,26 @@ mod tests {
         },
     ];
 
-    fn run(star: &mut Star, sparks: &mut Particles<Spark>, stars: &mut Vec<Star>) -> bool {
-        star.update(
-            1.0 / 60.0,
-            &mut Emission {
-                sparks,
-                stars,
-                spark_rate: 1.0,
-            },
-        )
+    fn run(star: &mut Star, sink: &mut Sink) -> bool {
+        star.update(1.0 / 60.0, &mut sink.spawn())
     }
 
     #[test]
     fn stars_shrink_lose_mass_and_change_colour_as_layers_burn() {
-        let mut sparks = Particles::new(0);
-        let mut stars = Vec::new();
+        let mut sink = Sink::new(0);
         let mut star = Star::new(
             COLOUR_CHANGER,
             1.0,
             Vec3::new(0.0, 100.0, 0.0),
             Vec3::new(30.0, 0.0, 0.0),
+            &mut sink.rng,
         );
         let start = star.light().unwrap();
         assert_eq!(start.0, STRONTIUM_RED.color);
         let mass = star.body.mass;
         let mut ticks = 0;
         while star.layer().map(|l| l.composition.color) == Some(STRONTIUM_RED.color) {
-            assert!(run(&mut star, &mut sparks, &mut stars));
+            assert!(run(&mut star, &mut sink));
             ticks += 1;
         }
         // 2 mm at the red star's measured regression rate.
@@ -507,28 +503,33 @@ mod tests {
         assert_eq!(star.light().unwrap().0, BARIUM_GREEN.color);
         assert!(star.body.mass < mass * 0.2);
         assert!(star.light().unwrap().1 < start.1);
-        while run(&mut star, &mut sparks, &mut stars) {}
+        while run(&mut star, &mut sink) {}
         assert_eq!(star.radius(), 0.0);
         assert!(star.light().is_none());
     }
 
     #[test]
     fn crossette_split_conserves_mass_and_momentum() {
-        let mut sparks = Particles::new(10_000);
-        let mut stars = Vec::new();
+        let mut sink = Sink::new(10_000);
         let velocity = Vec3::new(20.0, 10.0, -5.0);
-        let mut star = Star::new(CROSSETTE, 1.0, Vec3::new(0.0, 100.0, 0.0), velocity);
-        while run(&mut star, &mut sparks, &mut stars) {}
-        assert!(!sparks.items.is_empty(), "titanium tail throws sparks");
-        assert_eq!(stars.len(), 4);
+        let mut star = Star::new(
+            CROSSETTE,
+            1.0,
+            Vec3::new(0.0, 100.0, 0.0),
+            velocity,
+            &mut sink.rng,
+        );
+        while run(&mut star, &mut sink) {}
+        assert!(!sink.sparks.items.is_empty(), "titanium tail throws sparks");
+        assert_eq!(sink.stars.len(), 4);
         let core = remaining_mass(&CROSSETTE[2..], 1.0, 0.0);
-        let total: f64 = stars.iter().map(|s| s.body.mass).sum();
+        let total: f64 = sink.stars.iter().map(|s| s.body.mass).sum();
         assert!((total - core).abs() < 1e-12);
-        let mean = stars.iter().fold(Vec3::default(), |acc, s| {
+        let mean = sink.stars.iter().fold(Vec3::default(), |acc, s| {
             acc.add(s.body.velocity.scale(0.25))
         });
         assert!(mean.sub(star.body.velocity).length() < 1e-9);
-        for fragment in &stars {
+        for fragment in &sink.stars {
             let kick = fragment.body.velocity.sub(star.body.velocity);
             assert!(
                 kick.dot(star.body.velocity).abs() < 1e-6,
@@ -540,9 +541,15 @@ mod tests {
 
     #[test]
     fn sparks_cool_out_after_burning_and_glitter_waits_to_flash() {
-        let mut ember = Spark::new(&CHARCOAL_SPARKS, Vec3::new(0.0, 50.0, 0.0), Vec3::default());
+        let mut rng = Rng::new(1);
+        let mut ember = Spark::new(
+            &CHARCOAL_SPARKS,
+            Vec3::new(0.0, 50.0, 0.0),
+            Vec3::default(),
+            &mut rng,
+        );
         let mut alive_ticks = 0;
-        while ember.update(1.0 / 60.0) {
+        while ember.update(1.0 / 60.0, &mut rng) {
             alive_ticks += 1;
             assert!(alive_ticks < 120);
         }
@@ -550,10 +557,15 @@ mod tests {
         assert!(ember.luminance() < 1e-4);
 
         let glitter = GLITTER_GOLD.sparks.as_ref().unwrap();
-        let mut flake = Spark::new(glitter, Vec3::new(0.0, 50.0, 0.0), Vec3::default());
+        let mut flake = Spark::new(
+            glitter,
+            Vec3::new(0.0, 50.0, 0.0),
+            Vec3::default(),
+            &mut rng,
+        );
         let smoulder = flake.luminance();
         let mut peak: f64 = 0.0;
-        while flake.update(1.0 / 60.0) {
+        while flake.update(1.0 / 60.0, &mut rng) {
             peak = peak.max(flake.luminance());
         }
         assert!(peak > smoulder * 100.0);
@@ -569,13 +581,18 @@ mod tests {
             composition: &FISH_FUEL,
             thickness: 0.003,
         }];
-        let mut sparks = Particles::new(10_000);
-        let mut stars = Vec::new();
-        let mut strobe = Star::new(STROBE, 1.0, Vec3::new(0.0, 100.0, 0.0), Vec3::default());
+        let mut sink = Sink::new(10_000);
+        let mut strobe = Star::new(
+            STROBE,
+            1.0,
+            Vec3::new(0.0, 100.0, 0.0),
+            Vec3::default(),
+            &mut sink.rng,
+        );
         let mut lit = 0;
         let mut dark = 0;
         for _ in 0..60 {
-            run(&mut strobe, &mut sparks, &mut stars);
+            run(&mut strobe, &mut sink);
             if strobe.light().unwrap().1 > 0.0 {
                 lit += 1;
             } else {
@@ -584,11 +601,17 @@ mod tests {
         }
         assert!(lit > 5 && dark > lit);
 
-        let mut fish = Star::new(FISH, 1.0, Vec3::new(0.0, 100.0, 0.0), Vec3::default());
-        run(&mut fish, &mut sparks, &mut stars);
+        let mut fish = Star::new(
+            FISH,
+            1.0,
+            Vec3::new(0.0, 100.0, 0.0),
+            Vec3::default(),
+            &mut sink.rng,
+        );
+        run(&mut fish, &mut sink);
         assert!(fish.body.acceleration.length() > 20.0);
         for _ in 0..30 {
-            run(&mut fish, &mut sparks, &mut stars);
+            run(&mut fish, &mut sink);
         }
         assert!(fish.body.velocity.length() > 5.0);
     }
@@ -599,21 +622,21 @@ mod tests {
             composition: &GERB_SILVER,
             thickness: 0.02,
         }];
-        let mut sparks = Particles::new(10_000);
-        let mut stars = Vec::new();
+        let mut sink = Sink::new(10_000);
         let deck = Vec3::new(5.0, 1.8, -2.0);
-        let mut gerb = Star::new(GERB, 1.0, deck, Vec3::default()).mounted();
+        let mut gerb = Star::new(GERB, 1.0, deck, Vec3::default(), &mut sink.rng).mounted();
         for _ in 0..120 {
-            assert!(run(&mut gerb, &mut sparks, &mut stars));
+            assert!(run(&mut gerb, &mut sink));
         }
         assert_eq!(gerb.body.position, deck);
-        assert!(sparks.items.len() > 50);
-        let rising = sparks
+        assert!(sink.sparks.items.len() > 50);
+        let rising = sink
+            .sparks
             .items
             .iter()
             .filter(|s| s.body.velocity.y > 0.0)
             .count();
-        assert!(rising * 2 > sparks.items.len(), "the jet points up");
+        assert!(rising * 2 > sink.sparks.items.len(), "the jet points up");
     }
 
     #[test]

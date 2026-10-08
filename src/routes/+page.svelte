@@ -19,6 +19,14 @@
     return touch && phoneSized;
   }
 
+  // `?seed=123` replays a show exactly; without it every visit differs.
+  function requestedSeed() {
+    const seed = new URLSearchParams(window.location.search).get("seed");
+    return seed !== null && /^\d{1,10}$/.test(seed)
+      ? Number(seed) >>> 0
+      : undefined;
+  }
+
   let glowCanvas: HTMLCanvasElement;
   let rendererNote = $state("");
   let error = $state("");
@@ -66,7 +74,15 @@
       }
 
       let { cols, rows } = computeGrid();
-      const engine = new FireworkEngine(cols, rows, prefersMobileShow());
+      const engine = new FireworkEngine(
+        cols,
+        rows,
+        prefersMobileShow(),
+        requestedSeed(),
+      );
+      console.info(
+        `Fireworks seed ${engine.seed()}; add ?seed=${engine.seed()} to replay this show.`,
+      );
 
       const onResize = () => {
         ({ cols, rows } = computeGrid());

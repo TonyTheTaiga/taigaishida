@@ -16,11 +16,12 @@
 use crate::comet::{Comet, Gerb, Mine};
 use crate::designs::*;
 use crate::fleet::{Barge, LAMPS_PER_BARGE, LENGTH};
-use crate::particle::{Particles, Vec3};
+use crate::particle::Vec3;
 use crate::projection::Stage;
+use crate::rng::Rng;
 use crate::shell::{Fuse, Ignition, Shell, ShellDesign};
 use crate::star::{Puff, Star};
-use crate::{pick, rand, random_unit};
+use crate::world::Spawn;
 
 /// Time fuses burn up to 2% short, so shells burst at or just before the apex.
 const FUSE_SCATTER: (f64, f64) = (0.98, 1.0);
@@ -127,10 +128,11 @@ impl Venue {
         }
     }
 
-    pub fn program(self) -> Program {
+    /// The programme for one loop, its random draws taken from `rng`.
+    pub fn program(self, rng: &mut Rng) -> Program {
         match self {
-            Venue::Desktop => desktop(),
-            Venue::Mobile => mobile(),
+            Venue::Desktop => desktop(rng),
+            Venue::Mobile => mobile(rng),
         }
     }
 }
@@ -240,32 +242,31 @@ impl Cue {
 
     /// Fire the device. Lift charges and tube placement vary a little from
     /// shot to shot, and every lift leaves a flash and a puff of smoke.
-    pub fn fire(
-        &self,
-        shells: &mut Vec<Shell>,
-        stars: &mut Vec<Star>,
-        puffs: &mut Particles<Puff>,
-    ) {
-        let tilt = self.tilt + rand(-1.0, 1.0).to_radians();
-        let lean = rand(-1.5, 1.5).to_radians();
+    pub fn fire(&self, spawn: &mut Spawn) {
+        let rng = &mut *spawn.rng;
+        let tilt = self.tilt + rng.range(-1.0, 1.0).to_radians();
+        let lean = rng.range(-1.5, 1.5).to_radians();
         let aim = Vec3::new(tilt.sin(), tilt.cos() * lean.cos(), tilt.cos() * lean.sin());
         match self.device {
             Device::Shell(design) => {
-                let speed = design.muzzle_speed() * rand(0.97, 1.03);
+                let speed = design.muzzle_speed() * rng.range(0.97, 1.03);
                 let fuse = match design.ignition {
                     Ignition::TimeFuse => {
-                        Fuse::Burning(self.fuse * rand(FUSE_SCATTER.0, FUSE_SCATTER.1))
+                        Fuse::Burning(self.fuse * rng.range(FUSE_SCATTER.0, FUSE_SCATTER.1))
                     }
                     Ignition::Contact => Fuse::Contact,
                 };
-                shells.push(Shell::new(design, self.mortar, aim.scale(speed), fuse));
+                let shell = Shell::new(design, self.mortar, aim.scale(speed), fuse, rng);
+                spawn.shells.push(shell);
             }
             Device::Comet(comet) => {
-                let speed = comet.muzzle_speed() * rand(0.97, 1.03);
-                stars.push(Star::new(comet.recipe, 1.0, self.mortar, aim.scale(speed)).varied());
+                let speed = comet.muzzle_speed() * rng.range(0.97, 1.03);
+                let star = Star::new(comet.recipe, 1.0, self.mortar, aim.scale(speed), rng);
+                spawn.stars.push(star.varied(rng));
             }
             Device::Gerb(gerb) => {
-                stars.push(Star::new(gerb.recipe, 1.0, self.mortar, Vec3::default()).mounted());
+                let star = Star::new(gerb.recipe, 1.0, self.mortar, Vec3::default(), rng);
+                spawn.stars.push(star.mounted());
             }
             Device::Mine(mine) => {
                 let speed = mine.muzzle_speed();
@@ -273,23 +274,18 @@ impl Cue {
                 for &(recipe, count) in mine.payload {
                     for _ in 0..count {
                         // Uniform over the cone's solid angle.
-                        let cos = rand(mine.spread.cos(), 1.0);
+                        let cos = rng.range(mine.spread.cos(), 1.0);
                         let sin = (1.0 - cos * cos).sqrt();
-                        let turn = rand(0.0, std::f64::consts::TAU);
+                        let turn = rng.range(0.0, std::f64::consts::TAU);
                         let direction = aim
                             .scale(cos)
                             .add(u.scale(sin * turn.cos()))
                             .add(v.scale(sin * turn.sin()));
-                        stars.push(
-                            Star::new(
-                                recipe,
-                                1.0,
-                                self.mortar,
-                                direction.scale(speed * rand(0.8, 1.05)),
-                            )
-                            .varied()
-                            .primed(0.05),
-                        );
+                        let velocity = direction.scale(speed * rng.range(0.8, 1.05));
+                        let star = Star::new(recipe, 1.0, self.mortar, velocity, rng)
+                            .varied(rng)
+                            .primed(0.05, rng);
+                        spawn.stars.push(star);
                     }
                 }
             }
@@ -300,16 +296,16 @@ impl Cue {
             return;
         };
         let size = (lift / 0.27).cbrt();
-        puffs.push(Puff::flash(
+        spawn.puffs.push(Puff::flash(
             self.mortar.add(Vec3::new(0.0, 1.0, 0.0)),
             0.6 * size,
         ));
-        puffs.push(Puff::smoke(
+        spawn.puffs.push(Puff::smoke(
             self.mortar.add(Vec3::new(0.0, 2.0, 0.0)),
-            Vec3::new(0.0, 2.5, 0.0).add(random_unit().scale(0.5)),
+            Vec3::new(0.0, 2.5, 0.0).add(rng.unit().scale(0.5)),
             1.0 + 6.0 * size,
             0.4,
-            rand(10.0, 16.0),
+            rng.range(10.0, 16.0),
         ));
     }
 
@@ -338,16 +334,18 @@ pub struct Program {
 }
 
 /// A cue sheet: the vocabulary display designers compose with.
-struct Sheet {
+struct Sheet<'a> {
     fleet: &'static [Barge],
     cues: Vec<Cue>,
+    rng: &'a mut Rng,
 }
 
-impl Sheet {
-    fn new(venue: Venue) -> Self {
+impl<'a> Sheet<'a> {
+    fn new(venue: Venue, rng: &'a mut Rng) -> Self {
         Self {
             fleet: venue.fleet(),
             cues: Vec::new(),
+            rng,
         }
     }
 
@@ -359,14 +357,14 @@ impl Sheet {
     }
 
     /// The deck position nearest to `x` along the firing line.
-    fn at(&self, x: f64) -> Vec3 {
+    fn at(&mut self, x: f64) -> Vec3 {
         let barge = self
             .fleet
             .iter()
             .min_by(|a, b| (a.x - x).abs().total_cmp(&(b.x - x).abs()))
             .expect("a venue has barges");
         let along = (x - barge.x) / (LENGTH * 0.5 - 2.5);
-        barge.mortar(along, rand(-1.0, 1.0))
+        barge.mortar(along, self.rng.range(-1.0, 1.0))
     }
 
     fn shot(&mut self, burst: f64, design: &'static ShellDesign, x: f64, tilt: f64) {
@@ -445,9 +443,10 @@ impl Sheet {
     ) {
         let mut t = from;
         while t < to {
-            let x = rand(-half_width, half_width);
-            let tilt = self.lean(x) + rand(-max_tilt, max_tilt);
-            self.shot(t, pick(designs), x, tilt);
+            let x = self.rng.range(-half_width, half_width);
+            let tilt = self.lean(x) + self.rng.range(-max_tilt, max_tilt);
+            let design = self.rng.pick(designs);
+            self.shot(t, design, x, tilt);
             let progress = (t - from) / (to - from);
             t += start_gap + (end_gap - start_gap) * progress;
         }
@@ -536,7 +535,7 @@ impl Sheet {
             for i in 0..per_barge {
                 let along = -0.7 + 1.4 * (i as f64 + 0.5) / per_barge as f64;
                 self.cues.push(Cue::ground(
-                    time + rand(0.0, 0.15),
+                    time + self.rng.range(0.0, 0.15),
                     Device::Gerb(gerb),
                     barge.mortar(along, -1.0),
                     0.0,
@@ -566,7 +565,7 @@ impl Sheet {
                 from + i as f64 * interval,
                 &WATER_FAN,
                 mortar,
-                side * rand(38.0, 50.0),
+                side * self.rng.range(38.0, 50.0),
             ));
         }
     }
@@ -577,15 +576,15 @@ impl Sheet {
         let mut t = from;
         while t < to {
             let barge = &self.fleet
-                [(rand(0.0, self.fleet.len() as f64) as usize).min(self.fleet.len() - 1)];
-            let mortar = barge.mortar(rand(-1.0, 1.0), rand(-1.0, 1.0));
+                [(self.rng.range(0.0, self.fleet.len() as f64) as usize).min(self.fleet.len() - 1)];
+            let mortar = barge.mortar(self.rng.range(-1.0, 1.0), self.rng.range(-1.0, 1.0));
             self.cues.push(Cue::ground(
                 t,
-                *pick_device(devices),
+                self.rng.pick(devices),
                 mortar,
-                rand(-15.0, 15.0),
+                self.rng.range(-15.0, 15.0),
             ));
-            t += (rand(0.5, 1.5) / rate).min(0.55);
+            t += (self.rng.range(0.5, 1.5) / rate).min(0.55);
         }
     }
 
@@ -606,10 +605,6 @@ impl Sheet {
     }
 }
 
-fn pick_device(devices: &[Device]) -> &Device {
-    &devices[(rand(0.0, devices.len() as f64) as usize).min(devices.len() - 1)]
-}
-
 const PISTILS: [&ShellDesign; 4] = [&PISTIL_RED, &PISTIL_PINK, &PISTIL_PURPLE, &PISTIL_AQUA];
 const MIDS: [&ShellDesign; 6] = [
     &GOLD_KIKU,
@@ -624,8 +619,8 @@ const MIDS: [&ShellDesign; 6] = [
 /// stays busy: pearls, comets, mines, gerbs, and water shells low; star-mine
 /// chases and pistils in the middle; a feature shell high every few seconds.
 /// The finale fires a fifth of the show in its last forty seconds.
-fn desktop() -> Program {
-    let mut s = Sheet::new(Venue::Desktop);
+fn desktop(rng: &mut Rng) -> Program {
+    let mut s = Sheet::new(Venue::Desktop, rng);
     let line = [-220.0, -110.0, 0.0, 110.0, 220.0];
     let silver = Device::Comet(&SILVER_COMET);
     let gold = Device::Comet(&GOLD_COMET);
@@ -717,7 +712,8 @@ fn desktop() -> Program {
     let mut t = 44.0;
     let mut k = 0;
     while t < 78.0 {
-        s.shot(t, MIDS[k % MIDS.len()], line[(k * 3) % 5], rand(-8.0, 8.0));
+        let tilt = s.rng.range(-8.0, 8.0);
+        s.shot(t, MIDS[k % MIDS.len()], line[(k * 3) % 5], tilt);
         t += 0.9;
         k += 1;
     }
@@ -853,8 +849,8 @@ fn desktop() -> Program {
 
 /// About a minute and a half from three barges, composed for a portrait
 /// phone: the same layers and styles, centred and stacked by height.
-fn mobile() -> Program {
-    let mut s = Sheet::new(Venue::Mobile);
+fn mobile(rng: &mut Rng) -> Program {
+    let mut s = Sheet::new(Venue::Mobile, rng);
     let line = [-55.0, 0.0, 55.0];
     let silver = Device::Comet(&SILVER_COMET);
     let gold = Device::Comet(&GOLD_COMET);
@@ -928,7 +924,8 @@ fn mobile() -> Program {
     let mut k = 0;
     while t < 58.0 {
         let x = line[[0, 2][k % 2]];
-        s.shot(t, MIDS[k % MIDS.len()], x, -x / 12.0 + rand(-4.0, 4.0));
+        let tilt = -x / 12.0 + s.rng.range(-4.0, 4.0);
+        s.shot(t, MIDS[k % MIDS.len()], x, tilt);
         t += 1.2;
         k += 1;
     }
@@ -982,9 +979,13 @@ fn mobile() -> Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::particle::{Clock, Particles};
+    use crate::particle::Clock;
     use crate::projection::Camera;
-    use crate::star::Emission;
+    use crate::world::World;
+
+    fn program(venue: Venue) -> Program {
+        venue.program(&mut Rng::new(42))
+    }
 
     const VENUES: [(Venue, &[(usize, usize)]); 2] = [
         // Desktop, laptop, and ultrawide windows.
@@ -996,7 +997,7 @@ mod tests {
     #[test]
     fn programmes_feature_every_signature_and_modern_shell() {
         for (venue, _) in VENUES {
-            let program = venue.program();
+            let program = program(venue);
             for design in ALL.iter().chain(MODERN) {
                 assert!(
                     program
@@ -1022,7 +1023,7 @@ mod tests {
     #[test]
     fn the_sky_is_never_empty_and_the_finale_is_densest() {
         for (venue, _) in VENUES {
-            let program = venue.program();
+            let program = program(venue);
             let mut shows: Vec<f64> = program.cues.iter().map(|cue| cue.show).collect();
             shows.sort_by(f64::total_cmp);
             let last = *shows.last().unwrap();
@@ -1055,7 +1056,7 @@ mod tests {
     #[test]
     fn every_cue_fires_from_a_barge_deck() {
         for (venue, _) in VENUES {
-            for cue in venue.program().cues {
+            for cue in program(venue).cues {
                 let on_deck = venue.fleet().iter().any(|barge| {
                     (cue.mortar.x - barge.x).abs() < LENGTH * 0.5
                         && (cue.mortar.z - barge.z).abs() < crate::fleet::BEAM * 0.5
@@ -1072,7 +1073,7 @@ mod tests {
     #[test]
     fn every_burst_lands_inside_the_frame() {
         for (venue, viewports) in VENUES {
-            let program = venue.program();
+            let program = program(venue);
             for &(cols, rows) in viewports {
                 let camera = Camera::new(cols, rows, venue.stage());
                 for cue in &program.cues {
@@ -1093,26 +1094,16 @@ mod tests {
 
     #[test]
     fn shells_burst_on_cue() {
-        let program = Venue::Desktop.program();
-        for cue in program.cues.iter().step_by(7) {
-            let mut shells = Vec::new();
-            let mut stars = Vec::new();
-            let mut puffs = Particles::new(10);
-            cue.fire(&mut shells, &mut stars, &mut puffs);
-            let Some(mut shell) = shells.pop() else {
+        let budget = Venue::Desktop.budget();
+        for cue in program(Venue::Desktop).cues.iter().step_by(7) {
+            let mut world = World::new(&budget, 3);
+            world.fire(cue);
+            if world.shells.is_empty() {
                 continue;
-            };
-            let mut sparks = Particles::new(1000);
-            let mut emission = Emission {
-                sparks: &mut sparks,
-                stars: &mut stars,
-                spark_rate: 0.0,
-            };
+            }
             let mut time = cue.time;
-            while matches!(
-                shell.update(Clock::STEP_SECONDS, &mut emission),
-                crate::shell::Flight::Climbing
-            ) {
+            while world.bursts.is_empty() && !world.shells.is_empty() {
+                world.step(Clock::STEP_SECONDS);
                 time += Clock::STEP_SECONDS;
             }
             assert!(

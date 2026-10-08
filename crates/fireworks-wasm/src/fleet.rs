@@ -377,8 +377,21 @@ mod tests {
         };
         let dark = lit(&[]);
         let deck = |x: f64, y: f64, z: f64| Vec3::new(x, FREEBOARD + y, z);
-        let near = Star::new(FLARE, 1.0, deck(0.0, 100.0, -50.0), Vec3::default());
-        let far = Star::new(FLARE, 1.0, deck(0.0, 200.0, -100.0), Vec3::default());
+        let mut rng = crate::rng::Rng::new(3);
+        let near = Star::new(
+            FLARE,
+            1.0,
+            deck(0.0, 100.0, -50.0),
+            Vec3::default(),
+            &mut rng,
+        );
+        let far = Star::new(
+            FLARE,
+            1.0,
+            deck(0.0, 200.0, -100.0),
+            Vec3::default(),
+            &mut rng,
+        );
         let lit_near = lit(&[&near]);
         let lit_far = lit(&[&far]);
         // Per unit of each star's own output, which flutters.

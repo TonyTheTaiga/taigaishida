@@ -7,74 +7,30 @@ mod fleet;
 mod particle;
 mod projection;
 mod render;
+mod rng;
 mod shell;
 mod show;
 mod star;
 mod trail;
+mod world;
 
-use particle::{Clock, Particles, Vec3};
+use particle::Clock;
 use projection::Camera;
 use render::Frame;
-use shell::{Burst, Flight, Shell};
+use rng::Rng;
 use show::{Program, Venue};
-use star::{Emission, Puff, Spark, Star};
+use world::World;
 
-// ─── Constants ──────────────────────────────────────────────────────
-
-/// Share of stars whose burnt-out smoke is tracked as its own parcel. Each
-/// stands for the smoke of several stars, so a burst leaves a faint shell of
-/// smoke the size of its flower.
-const STAR_SMOKE_SHARE: f64 = 0.12;
-
-// ─── RNG helpers ────────────────────────────────────────────────────
-
-/// PCG-style generator kept inside WASM: sparks draw random numbers every
-/// tick, and crossing into JavaScript for each one dominated simulation time.
-fn rand_f64() -> f64 {
-    use std::cell::Cell;
-    thread_local! { static STATE: Cell<u64> = Cell::new(initial_seed()); }
-    STATE.with(|state| {
-        let next = state
-            .get()
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        state.set(next);
-        (next >> 11) as f64 / ((1u64 << 53) as f64)
-    })
-}
-
+/// A seed for an engine created without one.
 #[cfg(not(test))]
-fn initial_seed() -> u64 {
-    (js_sys::Math::random() * u64::MAX as f64) as u64 | 1
+fn fresh_seed() -> u32 {
+    (js_sys::Math::random() * u32::MAX as f64) as u32
 }
 
-// Native tests are deterministic and need no JavaScript runtime.
+// Native tests need no JavaScript runtime.
 #[cfg(test)]
-fn initial_seed() -> u64 {
+fn fresh_seed() -> u32 {
     42
-}
-
-pub(crate) fn rand(min: f64, max: f64) -> f64 {
-    rand_f64() * (max - min) + min
-}
-
-pub(crate) fn pick<T: Copy>(arr: &[T]) -> T {
-    arr[(rand_f64() * arr.len() as f64).floor() as usize % arr.len()]
-}
-
-/// Standard normal deviate (Box–Muller).
-pub(crate) fn gauss() -> f64 {
-    let u = rand_f64().max(1e-12);
-    let v = rand_f64();
-    (-2.0 * u.ln()).sqrt() * (std::f64::consts::TAU * v).cos()
-}
-
-/// Uniformly distributed direction on the unit sphere.
-pub(crate) fn random_unit() -> Vec3 {
-    let z = rand(-1.0, 1.0);
-    let a = rand(0.0, std::f64::consts::TAU);
-    let r = (1.0 - z * z).sqrt();
-    Vec3::new(r * a.cos(), r * a.sin(), z)
 }
 
 // ─── FireworkEngine (exported) ──────────────────────────────────────
@@ -85,14 +41,12 @@ pub struct FireworkEngine {
     cols: usize,
     rows: usize,
     frame: Frame,
-    shells: Vec<Shell>,
-    stars: Particles<Star>,
-    sparks: Particles<Spark>,
-    puffs: Particles<Puff>,
-    pending_stars: Vec<Star>,
-    pending_shells: Vec<Shell>,
+    world: World,
     light: fleet::Light,
     venue: Venue,
+    seed: u32,
+    /// How many times the programme has looped.
+    loops: u64,
     program: Program,
     /// Seconds into the current loop of the programme.
     time: f64,
@@ -103,14 +57,16 @@ pub struct FireworkEngine {
 #[wasm_bindgen]
 impl FireworkEngine {
     /// `mobile` selects the portrait-first phone programme and its smaller
-    /// particle budget; otherwise the panoramic desktop show plays.
+    /// particle budget; otherwise the panoramic desktop show plays. The same
+    /// `seed` replays the same show; without one, each engine draws its own.
     #[wasm_bindgen(constructor)]
-    pub fn new(cols: u32, rows: u32, mobile: bool) -> Self {
+    pub fn new(cols: u32, rows: u32, mobile: bool, seed: Option<u32>) -> Self {
         let venue = if mobile {
             Venue::Mobile
         } else {
             Venue::Desktop
         };
+        let seed = seed.unwrap_or_else(fresh_seed);
         let budget = venue.budget();
         Self {
             clock: Clock::default(),
@@ -121,15 +77,12 @@ impl FireworkEngine {
                 budget.segments(),
                 fleet::MAX_VERTICES,
             ),
-            shells: Vec::new(),
-            stars: Particles::new(budget.stars),
-            sparks: Particles::new(budget.sparks),
-            puffs: Particles::new(budget.puffs),
-            pending_stars: Vec::new(),
-            pending_shells: Vec::new(),
+            world: World::new(&budget, seed as u64),
             light: fleet::Light::default(),
             venue,
-            program: venue.program(),
+            seed,
+            loops: 0,
+            program: venue.program(&mut Rng::derive(seed as u64, 0)),
             time: 0.0,
             cue: 0,
         }
@@ -137,6 +90,11 @@ impl FireworkEngine {
 
     pub fn mobile(&self) -> bool {
         self.venue == Venue::Mobile
+    }
+
+    /// The seed this show was drawn from.
+    pub fn seed(&self) -> u32 {
+        self.seed
     }
 
     pub fn tick(&mut self, dt_sec: f64) {
@@ -155,93 +113,41 @@ impl FireworkEngine {
             .get(self.cue)
             .filter(|cue| cue.time <= self.time)
         {
-            cue.fire(&mut self.shells, &mut self.pending_stars, &mut self.puffs);
+            self.world.fire(cue);
             self.cue += 1;
         }
-
-        // Thin spark sampling once half the budget is in use, rather than
-        // letting whichever star updates first claim every slot.
-        let spark_rate = (self.sparks.headroom() * 2.0).min(1.0);
-        let mut emission = Emission {
-            sparks: &mut self.sparks,
-            stars: &mut self.pending_stars,
-            spark_rate,
-        };
-
-        let mut i = 0;
-        while i < self.shells.len() {
-            match self.shells[i].update(dt, &mut emission) {
-                Flight::Climbing => i += 1,
-                Flight::Burst => {
-                    let mut shell = self.shells.swap_remove(i);
-                    shell.burst(&mut Burst {
-                        stars: emission.stars,
-                        shells: &mut self.pending_shells,
-                        puffs: &mut self.puffs,
-                    });
-                }
-                Flight::Lost => {
-                    self.shells.swap_remove(i);
-                }
-            }
-        }
-        self.shells.append(&mut self.pending_shells);
-
-        let mut i = 0;
-        while i < self.stars.items.len() {
-            if self.stars.items[i].update(dt, &mut emission) {
-                i += 1;
-            } else {
-                let star = self.stars.items.swap_remove(i);
-                let p = star.body.position;
-                if star.radius() <= 0.0 && p.y > 0.0 && rand_f64() < STAR_SMOKE_SHARE {
-                    self.puffs.push(Puff::smoke(
-                        p,
-                        star.body.velocity.scale(0.3),
-                        rand(2.5, 4.5),
-                        0.12,
-                        rand(14.0, 22.0),
-                    ));
-                }
-            }
-        }
-        self.stars.emit(self.pending_stars.drain(..));
-        self.sparks.items.retain_mut(|spark| spark.update(dt));
-        self.puffs.items.retain_mut(|puff| puff.update(dt));
+        self.world.step(dt);
 
         // Loop the programme, with fresh random draws each time.
         if self.time > self.program.duration {
             self.time = 0.0;
             self.cue = 0;
-            self.program = self.venue.program();
+            self.loops += 1;
+            self.program = self
+                .venue
+                .program(&mut Rng::derive(self.seed as u64, self.loops));
         }
     }
 
     fn render(&mut self) {
         self.frame.clear();
         let camera = Camera::new(self.cols, self.rows, self.venue.stage());
-        let attached = self
-            .shells
-            .iter()
-            .flat_map(|shell| shell.attached.iter().flatten());
-        self.light.gather(
-            self.venue.fleet(),
-            self.stars.items.iter().chain(attached.clone()),
-            &self.puffs.items,
-        );
+        let world = &self.world;
+        self.light
+            .gather(self.venue.fleet(), world.burning(), &world.puffs.items);
         fleet::render(
             self.venue.fleet(),
             &mut self.light,
             &camera,
             &mut self.frame,
         );
-        for puff in &self.puffs.items {
+        for puff in &world.puffs.items {
             render::puff(puff, &camera, &mut self.frame);
         }
-        for spark in &self.sparks.items {
+        for spark in &world.sparks.items {
             render::spark(spark, &camera, &mut self.frame);
         }
-        for star in self.stars.items.iter().chain(attached) {
+        for star in world.burning() {
             render::star(star, &camera, &mut self.frame);
         }
     }
@@ -295,24 +201,19 @@ impl FireworkEngine {
     /// riding on climbing shells), spark particles, smoke and flash parcels,
     /// and shells still in flight.
     pub fn star_count(&self) -> u32 {
-        let attached: usize = self
-            .shells
-            .iter()
-            .map(|shell| shell.attached.iter().flatten().count())
-            .sum();
-        (self.stars.items.len() + attached) as u32
+        self.world.burning().count() as u32
     }
 
     pub fn spark_count(&self) -> u32 {
-        self.sparks.items.len() as u32
+        self.world.sparks.items.len() as u32
     }
 
     pub fn smoke_count(&self) -> u32 {
-        self.puffs.items.len() as u32
+        self.world.puffs.items.len() as u32
     }
 
     pub fn shell_count(&self) -> u32 {
-        self.shells.len() as u32
+        self.world.shells.len() as u32
     }
 
     pub fn cols(&self) -> u32 {
@@ -328,8 +229,9 @@ impl FireworkEngine {
 mod tests {
     use super::*;
     use designs::{ALL, STAR_MINE};
+    use particle::Vec3;
     use render::{POINT_STRIDE, TRAIL_STRIDE};
-    use shell::ShellDesign;
+    use shell::{Fuse, Shell, ShellDesign};
     use show::Cue;
 
     const DESKTOP: show::Budget = Venue::Desktop.budget();
@@ -340,62 +242,43 @@ mod tests {
     }
 
     /// Burst a design at altitude and run it to completion, returning the
-    /// widest horizontal spread of lit stars, their deepest fall, the time to
-    /// burn out, and the peak spark count.
+    /// widest horizontal spread of the flower (the 90th-percentile lit star,
+    /// so one outlier from an uneven burst cannot set it), the deepest fall,
+    /// the time to burn out, and the peak spark count.
     fn burst_alone(design: &'static ShellDesign) -> (f64, f64, f64, usize) {
-        let mut shells = vec![Shell::new(
+        let mut world = World::new(&DESKTOP, 42);
+        let shell = Shell::new(
             design,
             Vec3::new(0.0, 250.0, 0.0),
             Vec3::default(),
-            shell::Fuse::Burning(0.0),
-        )];
-        let mut stars: Particles<Star> = Particles::new(DESKTOP.stars);
-        let mut sparks = Particles::new(DESKTOP.sparks);
-        let mut puffs = Particles::new(DESKTOP.puffs);
-        let mut pending = Vec::new();
+            Fuse::Burning(0.0),
+            &mut world.rng,
+        );
+        world.launch(shell);
         let mut reach: f64 = 0.0;
         let mut drop: f64 = 0.0;
         let mut time = 0.0;
         let mut peak_sparks = 0;
+        let mut spreads = Vec::new();
         while time < 20.0 {
-            let spark_rate = (sparks.headroom() * 2.0).min(1.0);
-            let mut emission = Emission {
-                sparks: &mut sparks,
-                stars: &mut pending,
-                spark_rate,
-            };
-            let mut new_shells = Vec::new();
-            shells.retain_mut(
-                |shell| match shell.update(Clock::STEP_SECONDS, &mut emission) {
-                    Flight::Burst => {
-                        shell.burst(&mut Burst {
-                            stars: emission.stars,
-                            shells: &mut new_shells,
-                            puffs: &mut puffs,
-                        });
-                        false
-                    }
-                    Flight::Climbing => true,
-                    Flight::Lost => false,
-                },
-            );
-            shells.extend(new_shells);
-            stars
-                .items
-                .retain_mut(|star| star.update(Clock::STEP_SECONDS, &mut emission));
-            stars.emit(pending.drain(..));
-            sparks.items.retain_mut(|s| s.update(Clock::STEP_SECONDS));
-            peak_sparks = peak_sparks.max(sparks.items.len());
-            for star in &stars.items {
+            world.step(Clock::STEP_SECONDS);
+            peak_sparks = peak_sparks.max(world.sparks.items.len());
+            spreads.clear();
+            for star in &world.stars.items {
                 let p = star.body.position;
                 assert!(p.x.is_finite() && p.y.is_finite() && p.z.is_finite());
                 if star.light().is_some_and(|(_, l)| l > 0.0) {
-                    reach = reach.max(p.x.hypot(p.z));
+                    spreads.push(p.x.hypot(p.z));
                     drop = drop.max(250.0 - p.y);
                 }
             }
+            if !spreads.is_empty() {
+                let k = spreads.len() * 9 / 10;
+                let (_, ninetieth, _) = spreads.select_nth_unstable_by(k, f64::total_cmp);
+                reach = reach.max(*ninetieth);
+            }
             time += Clock::STEP_SECONDS;
-            if shells.is_empty() && stars.items.is_empty() && sparks.items.is_empty() {
+            if world.is_dark() {
                 break;
             }
         }
@@ -465,45 +348,37 @@ mod tests {
     #[test]
     fn lift_carries_each_shell_to_its_published_height_and_fuses_at_the_apex() {
         for design in every_design() {
-            let mut shells = Vec::new();
-            let mut stars = Vec::new();
-            let mut puffs = Particles::new(10);
-            Cue::shell(0.0, design, Vec3::new(40.0, 0.0, 0.0), 0.0).fire(
-                &mut shells,
-                &mut stars,
-                &mut puffs,
-            );
-            let mut shell = shells.pop().unwrap();
-            let muzzle = shell.body.velocity.length();
-            let mut sparks = Particles::new(DESKTOP.sparks);
-            let mut pending = Vec::new();
-            let mut emission = Emission {
-                sparks: &mut sparks,
-                stars: &mut pending,
-                spark_rate: 1.0,
-            };
-            let mut flight = Flight::Climbing;
+            let mut world = World::new(&DESKTOP, 7);
+            world.fire(&Cue::shell(0.0, design, Vec3::new(40.0, 0.0, 0.0), 0.0));
+            let muzzle = world.shells[0].body.velocity.length();
+            let mut rising = muzzle;
+            let mut fuse_sparks = false;
             let mut time = 0.0;
-            while matches!(flight, Flight::Climbing) {
-                flight = shell.update(Clock::STEP_SECONDS, &mut emission);
+            while world.bursts.is_empty() && !world.shells.is_empty() {
+                rising = world.shells[0].body.velocity.y;
+                world.step(Clock::STEP_SECONDS);
+                fuse_sparks |= !world.sparks.items.is_empty();
                 time += Clock::STEP_SECONDS;
             }
+            assert!(!world.bursts.is_empty(), "{} lost", design.name);
+            let burst = world.bursts[0];
             let (height, _, _) = published(design.diameter);
-            let altitude = shell.body.position.y;
+            let altitude = burst.y;
             println!(
                 "{:<24} {:>4.2} kg  muzzle {muzzle:>5.1} m/s  burst {altitude:>5.1} m (published {height})  after {time:.1} s",
                 design.name,
                 design.mass()
             );
-            assert!(matches!(flight, Flight::Burst), "{} lost", design.name);
             // Lift charges give about 112 m/s whatever the size (Kosanke);
             // a 5-gō shell measured 138 m/s, and a 3-gō needs only 86 m/s
-            // to reach the Association's 125 m.
+            // to reach the Association's 125 m. Each shot scatters by 3%.
+            let nominal = design.muzzle_speed();
             assert!(
-                (80.0..=150.0).contains(&muzzle),
-                "{} muzzle {muzzle}",
+                (80.0..=150.0).contains(&nominal),
+                "{} muzzle {nominal}",
                 design.name
             );
+            assert!((muzzle / nominal - 1.0).abs() <= 0.031);
             // Standard warimono match the table; lighter poka shells, opened
             // by a few grams of powder, carry less momentum against drag.
             let band = if is_warimono(design) {
@@ -518,13 +393,9 @@ mod tests {
             );
             // Kosanke: time fuses burn 3–6 s, more for larger shells.
             assert!((3.0..=7.5).contains(&time), "{} took {time} s", design.name);
-            assert!(
-                (shell.body.position.x - 40.0).abs() < 15.0,
-                "{}",
-                design.name
-            );
-            assert!(shell.body.velocity.y.abs() < 5.0);
-            assert!(!sparks.items.is_empty(), "the time fuse leaves sparks");
+            assert!((burst.x - 40.0).abs() < 15.0, "{}", design.name);
+            assert!(rising.abs() < 5.0, "{} bursts at its apex", design.name);
+            assert!(fuse_sparks, "the time fuse leaves sparks on the way up");
         }
     }
 
@@ -539,7 +410,7 @@ mod tests {
             (2000, 2000),
         ] {
             for mobile in [false, true] {
-                let mut engine = FireworkEngine::new(cols as u32, rows as u32, mobile);
+                let mut engine = FireworkEngine::new(cols as u32, rows as u32, mobile, None);
                 engine.tick(1.0);
                 engine.resize(rows as u32, cols as u32);
                 engine.tick(1.0);
@@ -550,7 +421,7 @@ mod tests {
     #[test]
     fn both_shows_stay_within_budget_finite_and_loop() {
         for (mobile, cols, rows) in [(false, 100, 60), (true, 27, 46)] {
-            let mut engine = FireworkEngine::new(cols, rows, mobile);
+            let mut engine = FireworkEngine::new(cols, rows, mobile, Some(9));
             let budget = engine.venue.budget();
             let duration = engine.program.duration;
             let mut rendered = false;
@@ -558,12 +429,13 @@ mod tests {
             let mut peak = (0, 0, 0);
             for _ in 0..((duration as usize + 5) * 60) {
                 engine.tick(Clock::STEP_SECONDS);
-                has_depth |= engine.stars.items.iter().any(|s| s.body.velocity.z != 0.0);
-                peak.0 = peak.0.max(engine.stars.items.len());
-                peak.1 = peak.1.max(engine.sparks.items.len());
+                let world = &engine.world;
+                has_depth |= world.stars.items.iter().any(|s| s.body.velocity.z != 0.0);
+                peak.0 = peak.0.max(world.stars.items.len());
+                peak.1 = peak.1.max(world.sparks.items.len());
                 peak.2 = peak.2.max(engine.trails_len() / TRAIL_STRIDE);
-                assert!(engine.stars.items.len() <= budget.stars);
-                assert!(engine.sparks.items.len() <= budget.sparks);
+                assert!(world.stars.items.len() <= budget.stars);
+                assert!(world.sparks.items.len() <= budget.sparks);
                 assert_eq!(engine.points_len() % POINT_STRIDE, 0);
                 assert_eq!(engine.trails_len() % TRAIL_STRIDE, 0);
                 assert_eq!(engine.mesh_len() % (render::MESH_STRIDE * 3), 0);
@@ -595,17 +467,17 @@ mod tests {
 
     #[test]
     fn resizing_does_not_replay_past_launches() {
-        let mut engine = FireworkEngine::new(100, 60, false);
+        let mut engine = FireworkEngine::new(100, 60, false, Some(5));
         for _ in 0..30 * 60 {
             engine.tick(Clock::STEP_SECONDS);
         }
         let launched = engine.cue;
-        let shells = engine.shells.len();
+        let shells = engine.world.shells.len();
         engine.resize(40, 80);
         assert_eq!(engine.cols(), 40);
         assert_eq!(engine.rows(), 80);
         assert_eq!(engine.cue, launched);
-        assert_eq!(engine.shells.len(), shells);
+        assert_eq!(engine.world.shells.len(), shells);
         assert!(engine.program.cues[..launched]
             .iter()
             .all(|cue| cue.time <= engine.time));
@@ -613,5 +485,22 @@ mod tests {
         engine.tick(Clock::STEP_SECONDS);
         assert_eq!(engine.cols(), 0);
         assert_eq!(engine.rows(), 0);
+    }
+
+    #[test]
+    fn a_seed_replays_the_same_show_and_engines_are_independent() {
+        let frames = |seed: u32| {
+            let mut engine = FireworkEngine::new(100, 60, false, Some(seed));
+            for _ in 0..12 * 60 {
+                engine.tick(Clock::STEP_SECONDS);
+            }
+            assert_eq!(engine.seed(), seed);
+            engine.frame.points.clone()
+        };
+        let first = frames(11);
+        // Another engine running in between draws from its own dice.
+        let _ = frames(12);
+        assert_eq!(first, frames(11));
+        assert_ne!(first, frames(12));
     }
 }

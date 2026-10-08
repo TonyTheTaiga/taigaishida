@@ -283,11 +283,13 @@ mod tests {
             composition: &chemistry::STRONTIUM_RED,
             thickness: 0.004,
         }];
+        let mut rng = crate::rng::Rng::new(4);
         let lit = Star::new(
             RECIPE,
             1.0,
             Vec3::new(10.25, 120.0, 15.0),
             Vec3::new(5.0, 0.0, 0.0),
+            &mut rng,
         );
         star(&lit, &camera, &mut frame);
         assert_eq!(frame.points.len(), POINT_STRIDE);
@@ -302,6 +304,7 @@ mod tests {
             chemistry::CHARCOAL_TAIL.sparks.as_ref().unwrap(),
             Vec3::new(0.0, 120.0, 0.0),
             Vec3::new(10.0, 0.0, 0.0),
+            &mut rng,
         );
         frame.clear();
         spark(&hot, &camera, &mut frame);
