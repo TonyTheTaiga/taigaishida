@@ -13,6 +13,9 @@ yarn-error.log
 .vite/
 dist/
 
+# Rust sources and build output; the WASM ships inside build/
+crates/
+
 # Version control
 .git/
 .gitignore
