@@ -181,7 +181,12 @@ impl Cue {
     /// A shell timed to burst at `burst` from a mortar tilted `tilt_degrees`
     /// toward +x. Display designers script by burst time and fire early by
     /// the shell's predicted flight.
-    pub fn shell(burst: f64, design: &'static ShellDesign, mortar: Vec3, tilt_degrees: f64) -> Self {
+    pub fn shell(
+        burst: f64,
+        design: &'static ShellDesign,
+        mortar: Vec3,
+        tilt_degrees: f64,
+    ) -> Self {
         let tilt = tilt_degrees.to_radians();
         let (_, fuse) = design.flight(tilt);
         let mean_fuse = fuse * 0.5 * (FUSE_SCATTER.0 + FUSE_SCATTER.1);
@@ -196,7 +201,12 @@ impl Cue {
     }
 
     /// A water shell lobbed to land, and burst, at `landing`.
-    pub fn water(landing: f64, design: &'static ShellDesign, mortar: Vec3, tilt_degrees: f64) -> Self {
+    pub fn water(
+        landing: f64,
+        design: &'static ShellDesign,
+        mortar: Vec3,
+        tilt_degrees: f64,
+    ) -> Self {
         let tilt = tilt_degrees.to_radians();
         let (_, flight) = design.splashdown(tilt);
         Self {
@@ -223,7 +233,12 @@ impl Cue {
 
     /// Fire the device. Lift charges and tube placement vary a little from
     /// shot to shot, and every lift leaves a flash and a puff of smoke.
-    pub fn fire(&self, shells: &mut Vec<Shell>, stars: &mut Vec<Star>, puffs: &mut Particles<Puff>) {
+    pub fn fire(
+        &self,
+        shells: &mut Vec<Shell>,
+        stars: &mut Vec<Star>,
+        puffs: &mut Particles<Puff>,
+    ) {
         let tilt = self.tilt + rand(-1.0, 1.0).to_radians();
         let lean = rand(-1.5, 1.5).to_radians();
         let aim = Vec3::new(tilt.sin(), tilt.cos() * lean.cos(), tilt.cos() * lean.sin());
@@ -277,7 +292,7 @@ impl Cue {
         ));
         puffs.push(Puff::smoke(
             self.mortar.add(Vec3::new(0.0, 2.0, 0.0)),
-            Vec3::new(0.0, 2.5, 0.0) .add(random_unit().scale(0.5)),
+            Vec3::new(0.0, 2.5, 0.0).add(random_unit().scale(0.5)),
             1.0 + 6.0 * size,
             0.4,
             rand(10.0, 16.0),
@@ -458,18 +473,38 @@ impl Sheet {
     }
 
     /// A Z cake: one tube at a time, snaking between ±`swing` degrees.
-    fn z_cake(&mut self, time: f64, device: Device, x: f64, shots: usize, interval: f64, swing: f64) {
+    fn z_cake(
+        &mut self,
+        time: f64,
+        device: Device,
+        x: f64,
+        shots: usize,
+        interval: f64,
+        swing: f64,
+    ) {
         let mortar = self.at(x);
         for i in 0..shots {
             let phase = (i as f64 / 8.0).fract();
             let tilt = swing * (1.0 - 4.0 * (phase - 0.5).abs());
-            self.cues
-                .push(Cue::ground(time + i as f64 * interval, device, mortar, tilt));
+            self.cues.push(Cue::ground(
+                time + i as f64 * interval,
+                device,
+                mortar,
+                tilt,
+            ));
         }
     }
 
     /// A Roman candle: pearls one after another from one tube.
-    fn candle(&mut self, time: f64, pearls: &[&'static Comet], x: f64, shots: usize, interval: f64, tilt: f64) {
+    fn candle(
+        &mut self,
+        time: f64,
+        pearls: &[&'static Comet],
+        x: f64,
+        shots: usize,
+        interval: f64,
+        tilt: f64,
+    ) {
         let mortar = self.at(x);
         for i in 0..shots {
             self.cues.push(Cue::ground(
@@ -527,9 +562,15 @@ impl Sheet {
     fn bed(&mut self, from: f64, to: f64, devices: &[Device], rate: f64) {
         let mut t = from;
         while t < to {
-            let barge = &self.fleet[(rand(0.0, self.fleet.len() as f64) as usize).min(self.fleet.len() - 1)];
+            let barge = &self.fleet
+                [(rand(0.0, self.fleet.len() as f64) as usize).min(self.fleet.len() - 1)];
             let mortar = barge.mortar(rand(-1.0, 1.0), rand(-1.0, 1.0));
-            self.cues.push(Cue::ground(t, *pick_device(devices), mortar, rand(-15.0, 15.0)));
+            self.cues.push(Cue::ground(
+                t,
+                *pick_device(devices),
+                mortar,
+                rand(-15.0, 15.0),
+            ));
             t += (rand(0.5, 1.5) / rate).min(0.55);
         }
     }
@@ -584,7 +625,12 @@ fn desktop() -> Program {
     // Overture: gerbs light the decks, comets race the line both ways, and
     // the first crowns open low, middle, and high at once.
     // Under everything, a low layer that never stops.
-    s.bed(0.0, 162.0, &[pearls_red, pearls_aqua, Device::Mine(&COLOUR_MINE), crackle], 1.2);
+    s.bed(
+        0.0,
+        162.0,
+        &[pearls_red, pearls_aqua, Device::Mine(&COLOUR_MINE), crackle],
+        1.2,
+    );
     s.gerbs(0.8, &SILVER_GERB, 2);
     s.chase(1.2, silver, -235.0, 235.0, 20, 0.05, 0.0);
     s.chase(2.4, crackle, 235.0, -235.0, 20, 0.05, 0.0);
@@ -610,7 +656,11 @@ fn desktop() -> Program {
     // and mines keep coming below.
     for k in 0..7 {
         let t = 14.0 + 4.0 * k as f64;
-        let (from, to) = if k % 2 == 0 { (-235.0, 235.0) } else { (235.0, -235.0) };
+        let (from, to) = if k % 2 == 0 {
+            (-235.0, 235.0)
+        } else {
+            (235.0, -235.0)
+        };
         s.sweep(t, RAINBOW, from, to, 15, 0.1);
         s.fan(t + 2.0, &[PISTILS[k % 4]], line[(k * 2) % 5], 3, 15.0);
     }
@@ -661,7 +711,11 @@ fn desktop() -> Program {
     s.bed(
         56.0,
         78.0,
-        &[Device::Mine(&SILVER_MINE), Device::Mine(&CRACKLE_MINE), gold],
+        &[
+            Device::Mine(&SILVER_MINE),
+            Device::Mine(&CRACKLE_MINE),
+            gold,
+        ],
         1.2,
     );
     s.gerbs(60.0, &GOLD_GERB, 2);
@@ -711,7 +765,11 @@ fn desktop() -> Program {
     s.bed(
         108.8,
         126.0,
-        &[Device::Mine(&WILLOW_MINE), gold, Device::Comet(&PEARL_LEMON)],
+        &[
+            Device::Mine(&WILLOW_MINE),
+            gold,
+            Device::Comet(&PEARL_LEMON),
+        ],
         1.4,
     );
 
@@ -719,7 +777,11 @@ fn desktop() -> Program {
     // and the modern shells in pairs.
     for k in 0..7 {
         let t = 126.0 + 2.0 * k as f64;
-        let (from, to) = if k % 2 == 0 { (-235.0, 235.0) } else { (235.0, -235.0) };
+        let (from, to) = if k % 2 == 0 {
+            (-235.0, 235.0)
+        } else {
+            (235.0, -235.0)
+        };
         s.sweep(t, RAINBOW, from, to, 15, 0.08);
         s.salvo(t + 1.0, PISTILS[k % 4], &[-165.0, 165.0]);
         let comet = if k % 2 == 0 { silver } else { crackle };
@@ -735,7 +797,11 @@ fn desktop() -> Program {
     s.bed(
         126.0,
         140.0,
-        &[Device::Mine(&COLOUR_MINE), Device::Mine(&CRACKLE_MINE), strobe],
+        &[
+            Device::Mine(&COLOUR_MINE),
+            Device::Mine(&CRACKLE_MINE),
+            strobe,
+        ],
         2.5,
     );
     // Barrage: the densest star mine, crossette fans from every barge, and
@@ -786,7 +852,12 @@ fn mobile() -> Program {
 
     // Overture.
     // Under everything, a low layer that never stops.
-    s.bed(0.0, 90.5, &[pearls_red, pearls_aqua, Device::Mine(&COLOUR_MINE), crackle], 1.0);
+    s.bed(
+        0.0,
+        90.5,
+        &[pearls_red, pearls_aqua, Device::Mine(&COLOUR_MINE), crackle],
+        1.0,
+    );
     s.gerbs(0.8, &SILVER_GERB, 2);
     s.chase(1.2, silver, -70.0, 70.0, 9, 0.07, 0.0);
     s.chase(2.0, crackle, 70.0, -70.0, 9, 0.07, 0.0);
@@ -805,7 +876,11 @@ fn mobile() -> Program {
     // Colour waves.
     for k in 0..5 {
         let t = 13.0 + 4.0 * k as f64;
-        let (from, to) = if k % 2 == 0 { (-70.0, 70.0) } else { (70.0, -70.0) };
+        let (from, to) = if k % 2 == 0 {
+            (-70.0, 70.0)
+        } else {
+            (70.0, -70.0)
+        };
         s.sweep(t, RAINBOW, from, to, 7, 0.14);
         s.shot(t + 2.0, PISTILS[k % 4], line[k % 3], 0.0);
     }
@@ -867,7 +942,11 @@ fn mobile() -> Program {
     // Finale.
     for k in 0..4 {
         let t = 75.0 + 2.0 * k as f64;
-        let (from, to) = if k % 2 == 0 { (-70.0, 70.0) } else { (70.0, -70.0) };
+        let (from, to) = if k % 2 == 0 {
+            (-70.0, 70.0)
+        } else {
+            (70.0, -70.0)
+        };
         s.sweep(t, RAINBOW, from, to, 7, 0.1);
         s.shot(t + 1.0, PISTILS[k], 0.0, 0.0);
         s.fan_cake(t + 0.5, silver, -55.0, 3, 15.0);
@@ -938,7 +1017,12 @@ mod tests {
                 .windows(2)
                 .map(|w| (w[1] - w[0], w[0]))
                 .fold((0.0, 0.0), |a, b| if b.0 > a.0 { b } else { a });
-            assert!(gap.0 <= 0.6, "{venue:?} goes dark for {:.2} s at {:.1} s", gap.0, gap.1);
+            assert!(
+                gap.0 <= 0.6,
+                "{venue:?} goes dark for {:.2} s at {:.1} s",
+                gap.0,
+                gap.1
+            );
             let rate = |from: f64, to: f64| {
                 shows.iter().filter(|&&t| t >= from && t < to).count() as f64 / (to - from)
             };
@@ -962,7 +1046,11 @@ mod tests {
                     (cue.mortar.x - barge.x).abs() < LENGTH * 0.5
                         && (cue.mortar.z - barge.z).abs() < crate::fleet::BEAM * 0.5
                 });
-                assert!(on_deck, "{venue:?}: {} fires from the water", cue.device.name());
+                assert!(
+                    on_deck,
+                    "{venue:?}: {} fires from the water",
+                    cue.device.name()
+                );
             }
         }
     }

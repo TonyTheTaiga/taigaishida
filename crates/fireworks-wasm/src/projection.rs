@@ -54,8 +54,7 @@ impl Camera {
         let focal_length = cols.max(rows).max(60.0) * 1.2;
         // Fit the same physical stage on every viewport by moving the
         // viewer, not resizing shells.
-        let framing =
-            (cols / stage.width).min(rows * SKY_FRACTION / CELL_ASPECT / stage.sky);
+        let framing = (cols / stage.width).min(rows * SKY_FRACTION / CELL_ASPECT / stage.sky);
         // Tilt up until the horizon sits SKY_FRACTION of the way down.
         let pitch = ((rows * (SKY_FRACTION - 0.5)) / (focal_length * CELL_ASPECT)).atan();
         Self {

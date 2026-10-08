@@ -306,8 +306,14 @@ mod tests {
         frame.clear();
         spark(&hot, &camera, &mut frame);
         assert_eq!(frame.trails.len(), TRAIL_STRIDE);
-        assert!(frame.trails[0] > frame.trails[2], "streak trails behind the motion");
-        assert!(frame.trails[6] < frame.trails[5], "charcoal sparks glow orange");
+        assert!(
+            frame.trails[0] > frame.trails[2],
+            "streak trails behind the motion"
+        );
+        assert!(
+            frame.trails[6] < frame.trails[5],
+            "charcoal sparks glow orange"
+        );
     }
 
     #[test]

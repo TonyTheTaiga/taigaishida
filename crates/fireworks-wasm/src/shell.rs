@@ -269,7 +269,10 @@ impl Shell {
             // Picture axes: across and up as the audience sees them, rolled
             // by up to 30°.
             Orientation::Upright => {
-                let across = Vec3::new(0.0, 1.0, 0.0).cross(pole).normalized().scale(-1.0);
+                let across = Vec3::new(0.0, 1.0, 0.0)
+                    .cross(pole)
+                    .normalized()
+                    .scale(-1.0);
                 let up = pole.cross(across).scale(-1.0);
                 (across, up, rand(-0.5, 0.5))
             }
@@ -308,14 +311,19 @@ impl Shell {
                     let z = 1.0 - 2.0 * (i as f64 + 0.5) / count as f64;
                     let r = (1.0 - z * z).max(0.0).sqrt();
                     let a = i as f64 * golden;
-                    u.scale(r * a.cos()).add(v.scale(r * a.sin())).add(pole.scale(z))
+                    u.scale(r * a.cos())
+                        .add(v.scale(r * a.sin()))
+                        .add(pole.scale(z))
                 };
                 let jitter = random_unit().scale(0.05);
                 let offset = match *pattern {
                     Pattern::Sphere => sphere(i).add(jitter).normalized(),
                     Pattern::Ring => {
                         let a = i as f64 / count as f64 * std::f64::consts::TAU;
-                        u.scale(a.cos()).add(v.scale(a.sin())).add(jitter).normalized()
+                        u.scale(a.cos())
+                            .add(v.scale(a.sin()))
+                            .add(jitter)
+                            .normalized()
                     }
                     Pattern::Sector { index, of } => {
                         let z = 1.0 - 2.0 * (i as f64 + 0.5) / count as f64;

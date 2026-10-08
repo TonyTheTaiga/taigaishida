@@ -238,7 +238,9 @@ impl Star {
         // Flames flutter by a few percent as gas and particles leave the
         // surface unevenly.
         let flutter = 1.0
-            + 0.07 * (self.age * 41.0 + self.phase * 31.0).sin() * (self.age * 17.0 + self.phase * 11.0).sin();
+            + 0.07
+                * (self.age * 41.0 + self.phase * 31.0).sin()
+                * (self.age * 17.0 + self.phase * 11.0).sin();
         let mut luminance = composition.luminosity * radius * radius * self.glow * flutter;
         match composition.effect {
             Effect::Strobe { hz, duty } => {
