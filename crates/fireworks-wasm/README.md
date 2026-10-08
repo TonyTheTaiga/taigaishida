@@ -60,8 +60,11 @@ directly; those follow from measured inputs (see [Calibration](#calibration)).
   are square on screen, the sky fills the top 80% of the frame, and framing
   fits the show's stage (520 m × 300 m on desktop, 190 m × 300 m on phones) to
   any viewport, which puts the viewer 0.45–1.3 km from the barges.
-- `src/show.rs`: the two show programmes, described below, and the cue-sheet
-  vocabulary they are written in.
+- `src/show.rs`: venues, budgets, fleets, and cues. `src/show/sheet.rs` is
+  the cue-sheet vocabulary (shots, salvos, fans, chases, cakes, candles,
+  gerbs, water fans, star mines, and a bed of low effects), and
+  `src/show/programme.rs` is the one programme every venue plays, described
+  below.
 - `src/render.rs`: packs light into the output buffers.
 - `src/trail.rs`: eight-sample motion history (persistence of vision) per star.
 - `src/world.rs`: the `World` that owns every shell, star, spark, and smoke
@@ -152,10 +155,10 @@ fails if the sky goes more than 0.6 s without a new effect.
 |            | Desktop                                  | Mobile                                |
 | ---------- | ---------------------------------------- | ------------------------------------- |
 | Fleet      | five barges 110 m apart (a 480 m line)   | three barges 55 m apart               |
-| Length     | 179 s loop, about 2,300 cues             | 105 s loop, about 760 cues            |
-| Pace       | 13.4 effects/s, 16.9/s in the finale     | 8.3/s, 8.5/s in the finale            |
+| Length     | 183 s loop, about 2,400 cues             | 127 s loop, about 1,250 cues          |
+| Pace       | 14.0 effects/s, 16.8/s in the finale     | 8.9/s, 15.7/s in the finale           |
 | Budget     | 10,000 stars, 36,000 sparks, 2,000 puffs | 4,500 stars, 15,000 sparks, 900 puffs |
-| Frame cost | 1.6 ms median, 4.8 ms p95 (Node)         | 0.9 ms median, 2.0 ms p95 (Node)      |
+| Frame cost | 1.1 ms median, 3.1 ms p95 (Node)         | 0.7 ms median, 1.5 ms p95 (Node)      |
 
 The desktop show runs in five sections:
 
@@ -175,8 +178,14 @@ The desktop show runs in five sections:
    chases every two seconds, the densest star mine, crossette fans from every
    barge, salute chases, a strobe wall, and five kamuro left hanging.
 
-The mobile show follows the same sections, centred and condensed for a
-portrait screen.
+The phone show plays the same programme. Each section is written once
+against the venue's barges, and feature shells open as many abreast as the
+line has room for (a flower spans about 1,050 times its shell's diameter),
+so a pair of 7-gō shells on desktop is one centred shell on a phone. A small
+`Plan` per venue sets only section lengths and densities: five colour waves
+instead of seven, ten fan-cake hops instead of twenty, a shorter barrage, no
+gold-and-silver interlude, and star mines firing at 55% of the desktop
+rate.
 
 ## Output buffers
 
@@ -289,7 +298,7 @@ initialization/cleanup.
 
 The renderer tests enforce draw-call, render-target, and allocation budgets
 with a mocked GPU; they do not measure browser FPS or validate shader output.
-In full-show WASM benchmarks under Node, a desktop frame took 1.6 ms at the
-median, 4.8 ms at the 95th percentile, and at most 6.2 ms on the development
-machine; a mobile frame took 0.9, 2.0, and 2.8 ms. Actual frame rate also
+In full-show WASM benchmarks under Node, a desktop frame took 1.1 ms at the
+median, 3.1 ms at the 95th percentile, and at most 4.0 ms on the development
+machine; a mobile frame took 0.7, 1.5, and 2.0 ms. Actual frame rate also
 depends on the browser and GPU.
