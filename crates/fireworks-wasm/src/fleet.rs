@@ -272,7 +272,7 @@ impl Light {
         }
         for puff in puffs.iter().filter(|p| p.kind == PuffKind::Flash) {
             add(
-                puff.body.position,
+                puff.position,
                 linear(Rgb(1.0, 0.9, 0.72)),
                 FLASH_LUMINANCE * puff.intensity * puff.fraction().powi(3),
             );

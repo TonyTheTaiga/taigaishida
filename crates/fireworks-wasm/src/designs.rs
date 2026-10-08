@@ -16,8 +16,8 @@
 //!   and weigh about half as much (Shimizu §17, Table 24).
 
 use crate::chemistry::*;
-use crate::comet::{Comet, Mine};
-use crate::shell::{Orientation, Pattern, Payload, ShellDesign};
+use crate::comet::{Comet, Gerb, Mine};
+use crate::shell::{Ignition, Orientation, Pattern, Payload, ShellDesign};
 
 const fn mm(composition: &'static Composition, thickness: f64) -> Layer {
     Layer {
@@ -94,7 +94,7 @@ pub const YAEZAKI: ShellDesign = ShellDesign {
     ],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 2. Kamuro (crown willow), 7-gō: a weakened bursting charge and long-burning
@@ -115,7 +115,7 @@ pub const KAMURO: ShellDesign = ShellDesign {
     }],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 3. Crossette, 4-gō: sixteen 25 mm titanium comets with a black-powder split
@@ -140,7 +140,7 @@ pub const CROSSETTE: ShellDesign = ShellDesign {
     }],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 4. Saturn, 6-gō: a violet-into-blue planet of 13 mm stars with a ring of
@@ -169,7 +169,7 @@ pub const SATURN: ShellDesign = ShellDesign {
     ],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 5. Senrin (thousand flowers), 6-gō: a shell of small shells (Shimizu §18.1).
@@ -193,7 +193,7 @@ macro_rules! small_flower {
             }],
             comet: &[],
             orientation: Orientation::Tumbling,
-            water: false,
+            ignition: Ignition::TimeFuse,
         }
     };
 }
@@ -221,7 +221,7 @@ pub const SENRIN: ShellDesign = ShellDesign {
     }],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 6. Koi, 5-gō poka: ninety pierced black-powder stars that vent gas through one
@@ -251,7 +251,7 @@ pub const KOI: ShellDesign = ShellDesign {
     ],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 7. Dragon eggs, 5-gō: the standard 180 × 13 mm load. A short gold tail, then
@@ -272,7 +272,7 @@ pub const DRAGON_EGGS: ShellDesign = ShellDesign {
     }],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 8. Twinkling crown, 6-gō: the standard 200 × 15 mm load. Silver titanium
@@ -293,7 +293,7 @@ pub const TWINKLING: ShellDesign = ShellDesign {
     }],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 9. Brocade palm, 5-gō: ten heavy 25 mm brocade comets (Shimizu's 7–8 s
@@ -323,7 +323,7 @@ pub const PALM: ShellDesign = ShellDesign {
     ],
     comet: &[mm(&BROCADE, 9.0)],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // 10. Ghost shell, 7-gō: dark delay layers separate three colours, so the
@@ -349,7 +349,7 @@ pub const GHOST: ShellDesign = ShellDesign {
     }],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 // Star-mine shells: small, quick, and fired in rapid sequences.
@@ -373,7 +373,7 @@ macro_rules! peony {
             }],
             comet: &[],
             orientation: Orientation::Tumbling,
-            water: false,
+            ignition: Ignition::TimeFuse,
         }
     };
 }
@@ -405,7 +405,7 @@ pub const GOLD_KIKU: ShellDesign = ShellDesign {
     }],
     comet: &[],
     orientation: Orientation::Tumbling,
-    water: false,
+    ignition: Ignition::TimeFuse,
 };
 
 /// Every star-mine shell.
@@ -458,7 +458,7 @@ const fn shell(
         payload,
         comet: &[],
         orientation: Orientation::Tumbling,
-        water: false,
+        ignition: Ignition::TimeFuse,
     }
 }
 
@@ -481,7 +481,7 @@ const fn poka(
         payload,
         comet: &[],
         orientation: Orientation::Tumbling,
-        water: false,
+        ignition: Ignition::TimeFuse,
     }
 }
 
@@ -950,7 +950,7 @@ pub const BROCADE_TIPS: ShellDesign = shell(
 // bursts on the surface as a half-dome of gold-tailed stars, like a
 // peacock's fan.
 pub const WATER_FAN: ShellDesign = ShellDesign {
-    water: true,
+    ignition: Ignition::Contact,
     // A gentle lob of about 22 m/s.
     lift_charge: 0.0003,
     ..shell(
@@ -1043,16 +1043,14 @@ pub const PEARLS: &[&Comet] = &[
     &PEARL_PURPLE,
 ];
 
-/// Gerbs never leave their tubes: a 40 mm charge jets sparks for about 12 s.
-pub const SILVER_GERB: Comet = Comet {
+/// A 40 mm gerb charge jets sparks for about 12 s.
+pub const SILVER_GERB: Gerb = Gerb {
     name: "Silver gerb",
     recipe: &[mm(&GERB_SILVER, 20.0)],
-    lift_charge: 0.0,
 };
-pub const GOLD_GERB: Comet = Comet {
+pub const GOLD_GERB: Gerb = Gerb {
     name: "Gold gerb",
     recipe: &[mm(&GERB_GOLD, 20.0)],
-    lift_charge: 0.0,
 };
 
 /// Mine lifts throw their stars out at 55–70 m/s.

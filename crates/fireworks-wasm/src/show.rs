@@ -13,12 +13,12 @@
 //! mobile show is composed for a portrait phone on three, on half the
 //! particle budget.
 
-use crate::comet::{Comet, Mine};
+use crate::comet::{Comet, Gerb, Mine};
 use crate::designs::*;
 use crate::fleet::{Barge, LAMPS_PER_BARGE, LENGTH};
 use crate::particle::{Particles, Vec3};
 use crate::projection::Stage;
-use crate::shell::{Shell, ShellDesign};
+use crate::shell::{Fuse, Ignition, Shell, ShellDesign};
 use crate::star::{Puff, Star};
 use crate::{pick, rand, random_unit};
 
@@ -140,14 +140,17 @@ pub enum Device {
     Shell(&'static ShellDesign),
     Comet(&'static Comet),
     Mine(&'static Mine),
+    Gerb(&'static Gerb),
 }
 
 impl Device {
-    fn lift_charge(self) -> f64 {
+    /// The lift charge, or `None` for a gerb, which has none.
+    fn lift_charge(self) -> Option<f64> {
         match self {
-            Device::Shell(design) => design.lift_charge,
-            Device::Comet(comet) => comet.lift_charge,
-            Device::Mine(mine) => mine.lift_charge,
+            Device::Shell(design) => Some(design.lift_charge),
+            Device::Comet(comet) => Some(comet.lift_charge),
+            Device::Mine(mine) => Some(mine.lift_charge),
+            Device::Gerb(_) => None,
         }
     }
 
@@ -157,6 +160,7 @@ impl Device {
             Device::Shell(design) => design.name,
             Device::Comet(comet) => comet.name,
             Device::Mine(mine) => mine.name,
+            Device::Gerb(gerb) => gerb.name,
         }
     }
 }
@@ -173,7 +177,8 @@ pub struct Cue {
     pub mortar: Vec3,
     /// Tube tilt from vertical toward +x, radians.
     pub tilt: f64,
-    /// Shells only: time fuse, cut to the shell's nominal time to apex.
+    /// Time-fused shells only: the fuse, cut to the shell's nominal time to
+    /// apex.
     pub fuse: f64,
 }
 
@@ -187,6 +192,7 @@ impl Cue {
         mortar: Vec3,
         tilt_degrees: f64,
     ) -> Self {
+        debug_assert!(design.ignition == Ignition::TimeFuse);
         let tilt = tilt_degrees.to_radians();
         let (_, fuse) = design.flight(tilt);
         let mean_fuse = fuse * 0.5 * (FUSE_SCATTER.0 + FUSE_SCATTER.1);
@@ -207,6 +213,7 @@ impl Cue {
         mortar: Vec3,
         tilt_degrees: f64,
     ) -> Self {
+        debug_assert!(design.ignition == Ignition::Contact);
         let tilt = tilt_degrees.to_radians();
         let (_, flight) = design.splashdown(tilt);
         Self {
@@ -215,11 +222,11 @@ impl Cue {
             device: Device::Shell(design),
             mortar,
             tilt,
-            fuse: f64::INFINITY,
+            fuse: 0.0,
         }
     }
 
-    /// A comet, mine, or gerb, which shows the moment it fires.
+    /// A comet, mine, or gerb, which shows the moment it fires or lights.
     pub fn ground(time: f64, device: Device, mortar: Vec3, tilt_degrees: f64) -> Self {
         Self {
             time,
@@ -245,16 +252,20 @@ impl Cue {
         match self.device {
             Device::Shell(design) => {
                 let speed = design.muzzle_speed() * rand(0.97, 1.03);
-                shells.push(Shell::new(
-                    design,
-                    self.mortar,
-                    aim.scale(speed),
-                    self.fuse * rand(FUSE_SCATTER.0, FUSE_SCATTER.1),
-                ));
+                let fuse = match design.ignition {
+                    Ignition::TimeFuse => {
+                        Fuse::Burning(self.fuse * rand(FUSE_SCATTER.0, FUSE_SCATTER.1))
+                    }
+                    Ignition::Contact => Fuse::Contact,
+                };
+                shells.push(Shell::new(design, self.mortar, aim.scale(speed), fuse));
             }
             Device::Comet(comet) => {
                 let speed = comet.muzzle_speed() * rand(0.97, 1.03);
                 stars.push(Star::new(comet.recipe, 1.0, self.mortar, aim.scale(speed)).varied());
+            }
+            Device::Gerb(gerb) => {
+                stars.push(Star::new(gerb.recipe, 1.0, self.mortar, Vec3::default()).mounted());
             }
             Device::Mine(mine) => {
                 let speed = mine.muzzle_speed();
@@ -283,9 +294,12 @@ impl Cue {
                 }
             }
         }
-        // The lift's flash and smoke scale with its charge, relative to a
-        // 6-inch bursting charge.
-        let size = (self.device.lift_charge() / 0.27).cbrt();
+        // A lift's flash and smoke scale with its charge, relative to a
+        // 6-inch bursting charge. A gerb has no lift.
+        let Some(lift) = self.device.lift_charge() else {
+            return;
+        };
+        let size = (lift / 0.27).cbrt();
         puffs.push(Puff::flash(
             self.mortar.add(Vec3::new(0.0, 1.0, 0.0)),
             0.6 * size,
@@ -303,7 +317,7 @@ impl Cue {
     #[cfg(test)]
     pub fn burst_point(&self) -> Option<Vec3> {
         match self.device {
-            Device::Shell(design) if design.water => {
+            Device::Shell(design) if design.ignition == Ignition::Contact => {
                 let (landing, _) = design.splashdown(self.tilt);
                 Some(self.mortar.add(landing))
             }
@@ -517,13 +531,13 @@ impl Sheet {
     }
 
     /// Gerbs along every deck.
-    fn gerbs(&mut self, time: f64, gerb: &'static Comet, per_barge: usize) {
+    fn gerbs(&mut self, time: f64, gerb: &'static Gerb, per_barge: usize) {
         for barge in self.fleet {
             for i in 0..per_barge {
                 let along = -0.7 + 1.4 * (i as f64 + 0.5) / per_barge as f64;
                 self.cues.push(Cue::ground(
                     time + rand(0.0, 0.15),
-                    Device::Comet(gerb),
+                    Device::Gerb(gerb),
                     barge.mortar(along, -1.0),
                     0.0,
                 ));

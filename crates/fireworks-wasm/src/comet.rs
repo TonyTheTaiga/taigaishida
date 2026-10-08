@@ -3,7 +3,8 @@
 //! A *comet* is one large pressed star shot from its own tube; it burns all
 //! the way up and leaves a tail. A *mine* is a mortar loaded with loose stars
 //! and no shell: the lift charge throws them out of the muzzle as a spreading
-//! cone. Cakes are racks of comet or mine tubes fused to fire one after
+//! cone. A *gerb* never leaves its tube: it burns in place and jets sparks
+//! upward. Cakes are racks of comet or mine tubes fused to fire one after
 //! another; the show sheet sequences their tubes.
 //!
 //! Muzzle speed follows the same energy balance as the shells' lift,
@@ -27,6 +28,13 @@ impl Comet {
     pub fn muzzle_speed(&self) -> f64 {
         (2.0 * LIFT_EFFICIENCY * self.lift_charge * BLACK_POWDER_HEAT / self.mass()).sqrt()
     }
+}
+
+pub struct Gerb {
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub name: &'static str,
+    /// The tube's charge, burning from the mouth down.
+    pub recipe: StarRecipe,
 }
 
 pub struct Mine {

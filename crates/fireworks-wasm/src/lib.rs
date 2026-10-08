@@ -347,7 +347,7 @@ mod tests {
             design,
             Vec3::new(0.0, 250.0, 0.0),
             Vec3::default(),
-            0.0,
+            shell::Fuse::Burning(0.0),
         )];
         let mut stars: Particles<Star> = Particles::new(DESKTOP.stars);
         let mut sparks = Particles::new(DESKTOP.sparks);

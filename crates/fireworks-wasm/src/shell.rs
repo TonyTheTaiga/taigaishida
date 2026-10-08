@@ -45,6 +45,27 @@ pub enum Pattern {
     Dome,
 }
 
+/// What sets a shell's burst off.
+#[derive(Clone, Copy, PartialEq)]
+pub enum Ignition {
+    /// A time fuse lit by the lift charge and cut to burn out at the apex.
+    TimeFuse,
+    /// Contact with the water: a water shell floats and bursts as it lands.
+    Contact,
+}
+
+/// A live shell's trigger.
+#[derive(Clone, Copy)]
+pub enum Fuse {
+    /// Seconds of time fuse left to burn.
+    Burning(f64),
+    /// Waiting to touch the water.
+    Contact,
+}
+
+/// Height at which a landing water shell is taken to touch the surface.
+const SURFACE: f64 = 0.3;
+
 /// How a shell sits when it bursts.
 #[derive(Clone, Copy, PartialEq)]
 pub enum Orientation {
@@ -87,9 +108,7 @@ pub struct ShellDesign {
     /// on after the burst (a palm's trunk).
     pub comet: StarRecipe,
     pub orientation: Orientation,
-    /// A water shell: lobbed from the barge, it floats and bursts on the
-    /// surface instead of on its time fuse.
-    pub water: bool,
+    pub ignition: Ignition,
 }
 
 /// The burning end of the time fuse, seen as a faint spark trail on the way
@@ -142,7 +161,6 @@ impl ShellDesign {
         let mut body = Body::new(
             Vec3::default(),
             Vec3::new(speed * tilt.sin(), speed * tilt.cos(), 0.0),
-            30.0,
         );
         body.mass = self.mass();
         body.diameter = self.diameter;
@@ -161,12 +179,11 @@ impl ShellDesign {
         let mut body = Body::new(
             Vec3::new(0.0, crate::fleet::FREEBOARD, 0.0),
             Vec3::new(speed * tilt.sin(), speed * tilt.cos(), 0.0),
-            30.0,
         );
         body.mass = self.mass();
         body.diameter = self.diameter;
         let mut time = 0.0;
-        while time < 30.0 && !(body.position.y <= 0.3 && body.velocity.y < 0.0) {
+        while time < 30.0 && !(body.position.y <= SURFACE && body.velocity.y < 0.0) {
             body.step(Clock::STEP_SECONDS);
             time += Clock::STEP_SECONDS;
         }
@@ -184,7 +201,7 @@ impl ShellDesign {
 pub struct Shell {
     pub body: Body,
     pub design: &'static ShellDesign,
-    pub fuse: f64,
+    pub fuse: Fuse,
     /// Things burning on the outside of the casing: the fuse, then any comet.
     pub attached: [Option<Star>; 2],
 }
@@ -204,8 +221,8 @@ pub enum Flight {
 }
 
 impl Shell {
-    pub fn new(design: &'static ShellDesign, position: Vec3, velocity: Vec3, fuse: f64) -> Self {
-        let mut body = Body::new(position, velocity, 1e9);
+    pub fn new(design: &'static ShellDesign, position: Vec3, velocity: Vec3, fuse: Fuse) -> Self {
+        let mut body = Body::new(position, velocity);
         body.mass = design.mass();
         body.diameter = design.diameter;
         Self {
@@ -231,12 +248,21 @@ impl Shell {
             }
         }
         self.body.step(dt);
-        self.fuse -= dt;
-        if self.design.water && self.body.position.y <= 0.3 && self.body.velocity.y < 0.0 {
-            self.body.position.y = 0.3;
-            self.body.velocity = Vec3::default();
-            Flight::Burst
-        } else if self.fuse <= 0.0 && !self.design.water {
+        let burst = match &mut self.fuse {
+            Fuse::Burning(left) => {
+                *left -= dt;
+                *left <= 0.0
+            }
+            Fuse::Contact => {
+                let landed = self.body.position.y <= SURFACE && self.body.velocity.y < 0.0;
+                if landed {
+                    self.body.position.y = SURFACE;
+                    self.body.velocity = Vec3::default();
+                }
+                landed
+            }
+        };
+        if burst {
             Flight::Burst
         } else if self.body.position.y <= 0.0 {
             Flight::Lost
@@ -386,7 +412,7 @@ impl Shell {
                         pick(designs),
                         start,
                         velocity,
-                        rand(fuse.0, fuse.1),
+                        Fuse::Burning(rand(fuse.0, fuse.1)),
                     )),
                 }
             }
@@ -411,5 +437,71 @@ impl Shell {
                 rand(18.0, 26.0),
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::designs::{WATER_FAN, YAEZAKI};
+
+    fn fly(shell: &mut Shell) -> (Flight, f64) {
+        let mut sparks = Particles::new(10_000);
+        let mut stars = Vec::new();
+        let mut emission = Emission {
+            sparks: &mut sparks,
+            stars: &mut stars,
+            spark_rate: 1.0,
+        };
+        let mut time = 0.0;
+        loop {
+            match shell.update(Clock::STEP_SECONDS, &mut emission) {
+                Flight::Climbing => time += Clock::STEP_SECONDS,
+                flight => return (flight, time),
+            }
+        }
+    }
+
+    #[test]
+    fn water_shells_burst_on_landing_whatever_the_time() {
+        let tilt = 45f64.to_radians();
+        let (landing, flight) = WATER_FAN.splashdown(tilt);
+        let speed = WATER_FAN.muzzle_speed();
+        let mut shell = Shell::new(
+            &WATER_FAN,
+            Vec3::new(0.0, crate::fleet::FREEBOARD, 0.0),
+            Vec3::new(speed * tilt.sin(), speed * tilt.cos(), 0.0),
+            Fuse::Contact,
+        );
+        let (outcome, time) = fly(&mut shell);
+        assert!(matches!(outcome, Flight::Burst));
+        assert!((time - flight).abs() < 0.05, "{time} vs {flight}");
+        assert!((shell.body.position.x - landing.x).abs() < 0.5);
+        assert!(
+            (20.0..80.0).contains(&landing.x),
+            "lands {} m out",
+            landing.x
+        );
+        assert_eq!(shell.body.position.y, SURFACE);
+    }
+
+    #[test]
+    fn a_time_fuse_bursts_on_time_and_a_short_one_is_lost() {
+        let mut shell = Shell::new(
+            &YAEZAKI,
+            Vec3::new(0.0, 200.0, 0.0),
+            Vec3::default(),
+            Fuse::Burning(1.5),
+        );
+        let (outcome, time) = fly(&mut shell);
+        assert!(matches!(outcome, Flight::Burst));
+        assert!((time - 1.5).abs() < 0.05);
+        let mut falling = Shell::new(
+            &YAEZAKI,
+            Vec3::new(0.0, 5.0, 0.0),
+            Vec3::default(),
+            Fuse::Burning(60.0),
+        );
+        assert!(matches!(fly(&mut falling).0, Flight::Lost));
     }
 }

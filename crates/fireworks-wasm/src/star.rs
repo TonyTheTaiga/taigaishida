@@ -10,7 +10,7 @@
 use crate::chemistry::{
     incandescence, recipe_radius, remaining_mass, Effect, Layer, Rgb, SparkFuel, BLACK_POWDER_HEAT,
 };
-use crate::particle::{Body, Particles, Vec3, GRAVITY};
+use crate::particle::{Body, Particles, Vec3, DISPLAY_WIND, GRAVITY};
 use crate::trail::Trail;
 use crate::{gauss, rand, random_unit};
 
@@ -23,7 +23,6 @@ const STEFAN_BOLTZMANN: f64 = 5.670_374e-8;
 const SPARK_EMISSIVITY: f64 = 0.9;
 /// Thrust is limited as a star's last fraction of a millimetre burns away.
 const MAX_THRUST_ACCELERATION: f64 = 140.0;
-const UNBOUNDED_LIFE: f64 = 1e9;
 
 /// Where a burning star sends the particles it creates this tick.
 pub struct Emission<'a> {
@@ -51,12 +50,22 @@ pub struct Star {
     glow: f64,
     /// Seconds left before the priming catches and the star lights.
     delay: f64,
+    mount: Mount,
+}
+
+/// How a burning star is held.
+#[derive(Clone, Copy, PartialEq)]
+enum Mount {
+    /// Flying under gravity, drag, and its own thrust.
+    Free,
+    /// Clamped in a tube on deck, like a gerb.
+    Fixed,
 }
 
 impl Star {
     pub fn new(layers: &'static [Layer], scale: f64, position: Vec3, velocity: Vec3) -> Self {
         let mut star = Self {
-            body: Body::new(position, velocity, UNBOUNDED_LIFE),
+            body: Body::new(position, velocity),
             layers,
             scale,
             burned: 0.0,
@@ -68,6 +77,7 @@ impl Star {
             vigour: 1.0,
             glow: 1.0,
             delay: 0.0,
+            mount: Mount::Free,
         };
         star.sync_body();
         star
@@ -80,6 +90,13 @@ impl Star {
     pub fn varied(mut self) -> Self {
         self.vigour = (1.0 + 0.06 * gauss()).clamp(0.82, 1.18);
         self.glow = (1.0 + 0.1 * gauss()).clamp(0.7, 1.3);
+        self
+    }
+
+    /// Clamp the star in place: it burns where it stands, as a gerb does in
+    /// its tube on deck.
+    pub fn mounted(mut self) -> Self {
+        self.mount = Mount::Fixed;
         self
     }
 
@@ -188,8 +205,7 @@ impl Star {
             _ => Vec3::default(),
         };
 
-        // A gerb is clamped to the deck; everything else flies.
-        if !matches!(composition.effect, Effect::Fountain { .. }) {
+        if self.mount == Mount::Free {
             self.body.step(dt);
         }
         self.age += dt;
@@ -270,7 +286,7 @@ pub struct Spark {
 
 impl Spark {
     pub fn new(fuel: &SparkFuel, position: Vec3, velocity: Vec3) -> Self {
-        let mut body = Body::new(position, velocity, UNBOUNDED_LIFE);
+        let mut body = Body::new(position, velocity);
         body.diameter = fuel.diameter;
         body.mass = fuel.density * std::f64::consts::PI / 6.0 * fuel.diameter.powi(3);
         let delay = rand(fuel.delay.0, fuel.delay.1);
@@ -338,9 +354,19 @@ pub enum PuffKind {
 /// doubles in size within ten seconds in light wind (estimate).
 const SMOKE_SPREAD: f64 = 2.2;
 
+/// A smoke parcel rises on its own heat at about 0.3 m/s (estimate).
+const SMOKE_RISE: f64 = 0.3;
+/// Seconds for a parcel thrown out by a burst or lift to settle into the wind.
+const SMOKE_SETTLING: f64 = 2.0;
+
 /// Burst by-products: a short detonation flash and drifting combustion smoke.
+/// Neither is a falling body: a flash stays where its charge fired, and smoke
+/// is carried by the air, so both move kinematically.
 pub struct Puff {
-    pub body: Body,
+    pub position: Vec3,
+    velocity: Vec3,
+    life: f64,
+    max_life: f64,
     pub kind: PuffKind,
     /// Flash: light relative to a 6-inch burst. Smoke: optical depth at the
     /// parcel's centre when it forms.
@@ -350,28 +376,28 @@ pub struct Puff {
 }
 
 impl Puff {
-    /// A parcel of hot gas and K₂CO₃/K₂SO₄ particulate. It rides the wind,
-    /// rises slowly on its own buoyancy, and thins as it spreads; it hangs in
-    /// the sky long enough for later bursts to light it.
+    /// A parcel of hot gas and K₂CO₃/K₂SO₄ particulate. It settles into the
+    /// wind, rises slowly on its own heat, and thins as it spreads; it hangs
+    /// in the sky long enough for later bursts to light it.
     pub fn smoke(position: Vec3, velocity: Vec3, radius: f64, density: f64, life: f64) -> Self {
-        let mut body = Body::new(position, velocity, life);
-        body.diameter = 0.05;
-        body.mass = 1e-5;
-        body.acceleration.y = GRAVITY + 0.3;
         Self {
-            body,
+            position,
+            velocity,
+            life,
+            max_life: life,
             kind: PuffKind::Smoke,
             intensity: density,
             initial_radius: radius,
         }
     }
 
+    /// The fireball of a burst or lift: a sixth of a second of light.
     pub fn flash(position: Vec3, intensity: f64) -> Self {
-        let mut body = Body::new(position, Vec3::default(), 0.17);
-        body.diameter = 0.0;
-        body.acceleration.y = GRAVITY;
         Self {
-            body,
+            position,
+            velocity: Vec3::default(),
+            life: 0.17,
+            max_life: 0.17,
             kind: PuffKind::Flash,
             intensity,
             initial_radius: 0.0,
@@ -379,11 +405,11 @@ impl Puff {
     }
 
     pub fn fraction(&self) -> f64 {
-        (self.body.life / self.body.max_life).max(0.0)
+        (self.life / self.max_life).max(0.0)
     }
 
     pub fn age(&self) -> f64 {
-        self.body.max_life - self.body.life
+        self.max_life - self.life
     }
 
     /// Current smoke radius, metres.
@@ -401,8 +427,14 @@ impl Puff {
     }
 
     pub fn update(&mut self, dt: f64) -> bool {
-        self.body.step(dt);
-        self.body.life > 0.0
+        if self.kind == PuffKind::Smoke {
+            let drift = DISPLAY_WIND.add(Vec3::new(0.0, SMOKE_RISE, 0.0));
+            let settle = (dt / SMOKE_SETTLING).min(1.0);
+            self.velocity = self.velocity.add(drift.sub(self.velocity).scale(settle));
+            self.position = self.position.add(self.velocity.scale(dt));
+        }
+        self.life -= dt;
+        self.life > 0.0
     }
 }
 
@@ -559,5 +591,51 @@ mod tests {
             run(&mut fish, &mut sparks, &mut stars);
         }
         assert!(fish.body.velocity.length() > 5.0);
+    }
+
+    #[test]
+    fn a_gerb_stays_in_its_tube_and_jets_upward() {
+        const GERB: &[Layer] = &[Layer {
+            composition: &GERB_SILVER,
+            thickness: 0.02,
+        }];
+        let mut sparks = Particles::new(10_000);
+        let mut stars = Vec::new();
+        let deck = Vec3::new(5.0, 1.8, -2.0);
+        let mut gerb = Star::new(GERB, 1.0, deck, Vec3::default()).mounted();
+        for _ in 0..120 {
+            assert!(run(&mut gerb, &mut sparks, &mut stars));
+        }
+        assert_eq!(gerb.body.position, deck);
+        assert!(sparks.items.len() > 50);
+        let rising = sparks
+            .items
+            .iter()
+            .filter(|s| s.body.velocity.y > 0.0)
+            .count();
+        assert!(rising * 2 > sparks.items.len(), "the jet points up");
+    }
+
+    #[test]
+    fn smoke_settles_into_the_wind_and_rises() {
+        let mut smoke = Puff::smoke(
+            Vec3::new(0.0, 200.0, 0.0),
+            Vec3::new(-20.0, 0.0, 5.0),
+            5.0,
+            0.3,
+            30.0,
+        );
+        // Ten settling times.
+        for _ in 0..1200 {
+            assert!(smoke.update(1.0 / 60.0));
+        }
+        let drift = DISPLAY_WIND.add(Vec3::new(0.0, SMOKE_RISE, 0.0));
+        assert!(smoke.velocity.sub(drift).length() < 0.05);
+        assert!(smoke.position.y > 200.0, "smoke never falls");
+        assert!(smoke.radius() > 5.0 && smoke.density() < 0.3);
+        let mut flash = Puff::flash(Vec3::new(1.0, 2.0, 3.0), 1.0);
+        flash.update(0.1);
+        assert_eq!(flash.position, Vec3::new(1.0, 2.0, 3.0));
+        assert!(!flash.update(0.1));
     }
 }

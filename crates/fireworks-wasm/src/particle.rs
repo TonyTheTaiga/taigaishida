@@ -11,7 +11,8 @@ const SCALE_HEIGHT: f64 = 8434.0;
 const AIR_DYNAMIC_VISCOSITY: f64 = 1.81e-5;
 const DEFAULT_STAR_MASS: f64 = 0.001;
 const DEFAULT_STAR_DIAMETER: f64 = 0.010;
-const DISPLAY_WIND: Vec3 = Vec3 {
+/// A light, steady breeze along the shore with a little onshore component.
+pub const DISPLAY_WIND: Vec3 = Vec3 {
     x: 2.0,
     y: 0.0,
     z: 0.8,
@@ -86,12 +87,10 @@ pub struct Body {
     pub wind: Vec3,
     pub mass: f64,
     pub diameter: f64,
-    pub life: f64,
-    pub max_life: f64,
 }
 
 impl Body {
-    pub fn new(position: Vec3, velocity: Vec3, life: f64) -> Self {
+    pub fn new(position: Vec3, velocity: Vec3) -> Self {
         Self {
             position,
             velocity,
@@ -99,8 +98,6 @@ impl Body {
             wind: DISPLAY_WIND,
             mass: DEFAULT_STAR_MASS,
             diameter: DEFAULT_STAR_DIAMETER,
-            life,
-            max_life: life,
         }
     }
 
@@ -154,7 +151,6 @@ impl Body {
         self.position.x += self.velocity.x * dt;
         self.position.y += self.velocity.y * dt;
         self.position.z += self.velocity.z * dt;
-        self.life -= dt;
         Vec3::new(
             self.position.x - old_position.x,
             self.position.y - old_position.y,
@@ -226,7 +222,7 @@ mod tests {
 
     #[test]
     fn integrates_all_axes_with_gravity_and_drag() {
-        let mut body = Body::new(Vec3::default(), Vec3::new(2.0, -2.0, 4.0), 10.0);
+        let mut body = Body::new(Vec3::default(), Vec3::new(2.0, -2.0, 4.0));
         body.diameter = 0.0; // isolate the exact gravity integration
         let dt = 1.0 / 60.0;
         let distance = body.step(dt);
@@ -234,14 +230,13 @@ mod tests {
         assert_eq!(body.position.x, 2.0 * dt);
         assert_eq!(body.position.y, body.velocity.y * dt);
         assert_eq!(body.position.z, 4.0 * dt);
-        assert!((body.life - (10.0 - dt)).abs() < 1e-12);
         assert!((distance - body.velocity.length() * dt).abs() < 1e-12);
     }
 
     #[test]
     fn quadratic_drag_slows_stars_and_wind_pushes_with_air_motion() {
-        let mut still_air = Body::new(Vec3::default(), Vec3::new(100.0, 0.0, 0.0), 2.0);
-        let mut tailwind = Body::new(Vec3::default(), Vec3::new(100.0, 0.0, 0.0), 2.0);
+        let mut still_air = Body::new(Vec3::default(), Vec3::new(100.0, 0.0, 0.0));
+        let mut tailwind = Body::new(Vec3::default(), Vec3::new(100.0, 0.0, 0.0));
         tailwind.wind.x = 20.0;
         for _ in 0..60 {
             still_air.step(1.0 / 60.0);
@@ -254,7 +249,7 @@ mod tests {
 
     #[test]
     fn implicit_drag_keeps_tiny_sparks_stable_and_at_terminal_velocity() {
-        let mut spark = Body::new(Vec3::default(), Vec3::new(0.0, -50.0, 0.0), 10.0);
+        let mut spark = Body::new(Vec3::default(), Vec3::new(0.0, -50.0, 0.0));
         spark.wind = Vec3::default();
         spark.diameter = 0.0001;
         spark.mass = 1000.0 * std::f64::consts::PI / 6.0 * spark.diameter.powi(3);

@@ -239,7 +239,7 @@ pub fn spark(spark: &Spark, camera: &Camera, frame: &mut Frame) {
 }
 
 pub fn puff(puff: &Puff, camera: &Camera, frame: &mut Frame) {
-    let p = puff.body.position;
+    let p = puff.position;
     let Some((x, y, ratio)) = camera.project(p.x, p.y, p.z) else {
         return;
     };
