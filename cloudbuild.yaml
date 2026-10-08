@@ -11,7 +11,7 @@ steps:
         cargo install wasm-pack
         wasm-pack build crates/fireworks-wasm --target web --out-dir ../../src/lib/fireworks-wasm
 
-  - name: node:20
+  - name: node:24
     entrypoint: bash
     args:
       - -lc

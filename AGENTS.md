@@ -13,7 +13,7 @@ This is a Svelte 5/SvelteKit personal site with a Rust/WebAssembly fireworks eng
 
 ## Build, Test, and Development Commands
 
-Use pnpm and Node.js 20, matching Cloud Build. Install Rust, `wasm-pack`, and the `wasm32-unknown-unknown` target before building.
+Use pnpm and Node.js 24, matching Cloud Build and the App Engine runtime. Install Rust, `wasm-pack`, and the `wasm32-unknown-unknown` target before building.
 
 - `pnpm install --frozen-lockfile`: install dependencies from the committed lockfile.
 - `pnpm run wasm:build`: compile Rust and generate browser WASM bindings. Run before checking a fresh checkout and after Rust changes.
